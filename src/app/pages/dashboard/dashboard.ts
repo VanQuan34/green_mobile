@@ -217,17 +217,26 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     const invoices = this.dataService.getInvoices();
     const products = this.dataService.getProducts();
 
-    this.stats.totalRevenue = invoices.reduce((sum, i) => sum + i.productPrice, 0);
+    this.stats.totalRevenue = invoices.reduce((sum, i) => sum + (i.totalAmount || i.productPrice || 0), 0);
     this.stats.totalPaid = invoices.reduce((sum, i) => sum + i.amountPaid, 0);
     this.stats.totalDebt = invoices.reduce((sum, i) => sum + i.debt, 0);
-    this.stats.soldCount = invoices.length;
+    
+    // Đếm tổng số máy đã bán từ tất cả hóa đơn
+    this.stats.soldCount = invoices.reduce((sum, inv) => sum + (inv.products?.length || 1), 0);
     this.stats.inventoryCount = products.filter(p => !p.sale).length;
 
-    // Tính lợi nhuận: Tổng (Giá bán hóa đơn - Giá nhập sản phẩm)
+    // Tính lợi nhuận: Tổng (Tổng giá bán - Tổng giá nhập của các máy trong hóa đơn)
     this.stats.totalProfit = invoices.reduce((sum, inv) => {
-      const product = products.find(p => p.id === inv.productId);
-      const cost = product ? product.originalPrice : 0;
-      return sum + (inv.productPrice - cost);
+      const revenue = inv.totalAmount || inv.productPrice || 0;
+      let cost = 0;
+      if (inv.products && inv.products.length > 0) {
+        cost = inv.products.reduce((s, p) => s + p.originalPrice, 0);
+      } else {
+        // Fallback cho hóa đơn cũ
+        const product = products.find(p => p.id === inv.productId);
+        cost = product ? product.originalPrice : 0;
+      }
+      return sum + (revenue - cost);
     }, 0);
   }
 
@@ -242,7 +251,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     const revenueData = last7Days.map(dateStr => {
       return this.dataService.getInvoices().reduce((sum, inv) => {
         const invDate = new Date(inv.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-        return invDate === dateStr ? sum + inv.productPrice : sum;
+        return invDate === dateStr ? sum + (inv.totalAmount || inv.productPrice || 0) : sum;
       }, 0);
     });
 

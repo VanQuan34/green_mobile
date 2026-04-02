@@ -7,7 +7,8 @@ import { HttpClient } from '@angular/common/http';
   providedIn: 'root'
 })
 export class DataService {
-  private apiUrl = 'https://quantv.store/wp-json/gm/v1'; // Đổi URL này cho đúng với WordPress của bạn
+  private apiUrl = process.env['NG_APP_API_URL'] || 'https://quantv.store/wp-json/gm/v1';
+  private storageType = process.env['NG_APP_STORAGE_TYPE'] || 'api';
   private http = inject(HttpClient);
   
   private productsSubject = new BehaviorSubject<Product[]>([]);
@@ -25,7 +26,19 @@ export class DataService {
     this.loadInitialData();
   }
 
+  private get isLocal(): boolean {
+    return this.storageType === 'local';
+  }
+
   loadInitialData() {
+    if (this.isLocal) {
+      this.loadLocalData();
+    } else {
+      this.loadApiData();
+    }
+  }
+
+  private loadApiData() {
     // Tải sản phẩm từ API
     this.http.get<Product[]>(`${this.apiUrl}/products`).subscribe(products => {
       this.productsSubject.next(products);
@@ -43,27 +56,89 @@ export class DataService {
     });
   }
 
+  private loadLocalData() {
+    const products = JSON.parse(localStorage.getItem('gm_products') || '[]');
+    const invoices = JSON.parse(localStorage.getItem('gm_invoices') || '[]');
+    const customers = JSON.parse(localStorage.getItem('gm_customers_cache') || '[]');
+    
+    this.productsSubject.next(products);
+    this.invoicesSubject.next(invoices);
+    this.customersSubject.next(customers);
+
+    // If local and empty, maybe initialize with some dummy data?
+    if (products.length === 0) {
+      this.initializeMockData();
+    }
+  }
+
+  private initializeMockData() {
+    const mockProducts: Product[] = [
+      { 
+        id: '1', 
+        name: 'iPhone 15 Pro Max', 
+        sellingPrice: 29000000, 
+        originalPrice: 32000000,
+        image: '', 
+        imei: '123456789', 
+        capacity: '256GB', 
+        color: 'Titanium', 
+        status: 'New' 
+      },
+      { 
+        id: '2', 
+        name: 'Samsung S24 Ultra', 
+        sellingPrice: 25000000, 
+        originalPrice: 28000000,
+        image: '', 
+        imei: '987654321', 
+        capacity: '512GB', 
+        color: 'Black', 
+        status: 'New' 
+      }
+    ];
+    localStorage.setItem('gm_products', JSON.stringify(mockProducts));
+    this.productsSubject.next(mockProducts);
+  }
+
   // Product Methods
   getProducts(): Product[] {
     return this.productsSubject.value;
   }
 
   addProduct(product: Product) {
-    this.http.post(`${this.apiUrl}/products`, product).subscribe(() => {
-      this.loadInitialData();
-    });
+    if (this.isLocal) {
+      const current = this.productsSubject.value;
+      const updated = [...current, { ...product, id: Date.now().toString() }];
+      this.saveLocal('gm_products', updated, this.productsSubject);
+    } else {
+      this.http.post(`${this.apiUrl}/products`, product).subscribe(() => {
+        this.loadInitialData();
+      });
+    }
   }
 
   updateProduct(product: Product) {
-    this.http.put(`${this.apiUrl}/products/${product.id}`, product).subscribe(() => {
-      this.loadInitialData();
-    });
+    if (this.isLocal) {
+      const current = this.productsSubject.value;
+      const updated = current.map(p => p.id === product.id ? product : p);
+      this.saveLocal('gm_products', updated, this.productsSubject);
+    } else {
+      this.http.put(`${this.apiUrl}/products/${product.id}`, product).subscribe(() => {
+        this.loadInitialData();
+      });
+    }
   }
 
   deleteProduct(id: string) {
-    this.http.delete(`${this.apiUrl}/products/${id}`).subscribe(() => {
-      this.loadInitialData();
-    });
+    if (this.isLocal) {
+      const current = this.productsSubject.value;
+      const updated = current.filter(p => p.id !== id);
+      this.saveLocal('gm_products', updated, this.productsSubject);
+    } else {
+      this.http.delete(`${this.apiUrl}/products/${id}`).subscribe(() => {
+        this.loadInitialData();
+      });
+    }
   }
 
   // Invoice Methods
@@ -72,10 +147,41 @@ export class DataService {
   }
 
   addInvoice(invoice: Invoice) {
-    this.http.post(`${this.apiUrl}/invoices`, invoice).subscribe(() => {
-      this.loadInitialData();
-      this.updateCustomerCache(invoice);
-    });
+    if (this.isLocal) {
+      const current = this.invoicesSubject.value;
+      const newInvoice = { ...invoice, id: Date.now().toString() };
+      const updated = [...current, newInvoice];
+      this.saveLocal('gm_invoices', updated, this.invoicesSubject);
+      this.updateCustomerCache(newInvoice);
+      this.markProductsAsSold(invoice.products || []);
+    } else {
+      this.http.post(`${this.apiUrl}/invoices`, invoice).subscribe(() => {
+        this.loadInitialData();
+        this.updateCustomerCache(invoice);
+      });
+    }
+  }
+
+  private markProductsAsSold(products: Product[]) {
+    if (!this.isLocal) return;
+    const currentProducts = this.productsSubject.value;
+    const soldIds = products.map(p => p.id);
+    const updated = currentProducts.map(p => 
+      soldIds.includes(p.id) ? { ...p, sale: true } : p
+    );
+    this.saveLocal('gm_products', updated, this.productsSubject);
+  }
+
+  deleteInvoice(id: string) {
+    if (this.isLocal) {
+      const current = this.invoicesSubject.value;
+      const updated = current.filter(i => i.id !== id);
+      this.saveLocal('gm_invoices', updated, this.invoicesSubject);
+    } else {
+      this.http.delete(`${this.apiUrl}/invoices/${id}`).subscribe(() => {
+        this.loadInitialData();
+      });
+    }
   }
 
   private updateCustomerCache(invoice: Invoice) {
@@ -99,10 +205,9 @@ export class DataService {
     localStorage.setItem('gm_customers_cache', JSON.stringify(updated));
   }
 
-  deleteInvoice(id: string) {
-    this.http.delete(`${this.apiUrl}/invoices/${id}`).subscribe(() => {
-      this.loadInitialData();
-    });
+  private saveLocal(key: string, data: any, subject: BehaviorSubject<any>) {
+    localStorage.setItem(key, JSON.stringify(data));
+    subject.next(data);
   }
 
   // Get unique customers from sync cache (always refreshed at startup)

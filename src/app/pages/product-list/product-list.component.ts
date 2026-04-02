@@ -96,7 +96,7 @@ import { InvoiceConfirmModalComponent } from '../../components/invoice-confirm-m
 
       <app-invoice-form-modal
         *ngIf="showInvoiceForm"
-        [product]="selectedProduct"
+        [products]="[selectedProduct]"
         (close)="showInvoiceForm = false"
         (confirm)="onConfirmInvoice($event)"
       ></app-invoice-form-modal>

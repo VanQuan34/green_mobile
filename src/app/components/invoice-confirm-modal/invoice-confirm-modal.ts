@@ -26,10 +26,12 @@ import { Invoice } from '../../models/data.models';
             </div>
 
             <div class="summary-section">
-              <label>Sản phẩm</label>
-              <div class="info-box">
-                <p><strong>{{ invoice.productName }}</strong></p>
-                <p class="text-muted">Đơn giá: {{ invoice.productPrice | number }}đ</p>
+              <label>Sản phẩm đã chọn ({{ invoice.products?.length || 0 }})</label>
+              <div class="info-box products-list-confirm">
+                <div class="p-item-row" *ngFor="let p of invoice.products">
+                  <span>{{ p.name }}</span>
+                  <span class="text-muted">{{ p.sellingPrice | number }}đ</span>
+                </div>
               </div>
             </div>
 
@@ -37,11 +39,11 @@ import { Invoice } from '../../models/data.models';
               <label>Thanh toán</label>
               <div class="payment-box" [class.is-debt]="invoice.debt > 0">
                 <div class="row">
-                  <span>Tổng tiền:</span>
-                  <strong>{{ invoice.productPrice | number }}đ</strong>
+                  <span>Tổng cộng:</span>
+                  <strong>{{ invoice.totalAmount | number }}đ</strong>
                 </div>
                 <div class="row">
-                  <span>Đã thanh toán:</span>
+                  <span>Khách trả:</span>
                   <strong>{{ invoice.amountPaid | number }}đ</strong>
                 </div>
                 <div class="row total-row" *ngIf="invoice.debt > 0">
@@ -147,8 +149,30 @@ import { Invoice } from '../../models/data.models';
     .info-box {
       padding: 0.75rem;
       background: var(--bg-main);
-      border-radius: 0.5rem;
+      border: 0.75rem;
       border: 1px solid var(--border);
+    }
+
+    .products-list-confirm {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .p-item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      padding-bottom: 0.25rem;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .p-item-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
     }
     
     .payment-box {

@@ -32,16 +32,29 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
             (input)="onSearch()"
           >
         </div>
-        <button class="btn btn-primary" (click)="openProductModal()">
-          <span class="icon">➕</span>
-          <span>Thêm sản phẩm</span>
-        </button>
+        <div class="btn-group">
+          <button 
+            *ngIf="selectedProductIds.size > 0"
+            class="btn btn-invoice animate-scale-up" 
+            (click)="createBulkInvoice()"
+          >
+            <span class="icon">🧾</span>
+            <span>Lập hóa đơn ({{ selectedProductIds.size }})</span>
+          </button>
+          <button class="btn btn-primary" (click)="openProductModal()">
+            <span class="icon">➕</span>
+            <span>Thêm sản phẩm</span>
+          </button>
+        </div>
       </div>
 
       <div class="table-container glass-card animate-fade-in">
         <table>
           <thead>
             <tr>
+              <th>
+                <input type="checkbox" [checked]="isAllSelected()" (change)="toggleSelectAll()">
+              </th>
               <th>STT</th>
               <th>Hình ảnh</th>
               <th>Tên sản phẩm</th>
@@ -56,6 +69,9 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
           </thead>
           <tbody>
             <tr *ngFor="let product of filteredProducts; let i = index" (click)="viewDetail(product)" class="clickable-row">
+              <td (click)="$event.stopPropagation()">
+                <input type="checkbox" [checked]="selectedProductIds.has(product.id)" (change)="toggleSelect(product.id)">
+              </td>
               <td>{{ i + 1 }}</td>
               <td>
                 <div class="product-img">
@@ -78,7 +94,7 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
               </td>
             </tr>
             <tr *ngIf="filteredProducts.length === 0">
-              <td colspan="10" class="empty-state">
+              <td colspan="11" class="empty-state">
                 <div class="empty-msg">
                   <span>📭</span>
                   <p>Không tìm thấy sản phẩm nào.</p>
@@ -106,7 +122,7 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
 
       <app-invoice-form-modal
         *ngIf="showInvoiceForm"
-        [product]="selectedProduct"
+        [products]="selectedProductsForInvoice"
         (close)="showInvoiceForm = false"
         (confirm)="onConfirmInvoice($event)"
       ></app-invoice-form-modal>
@@ -293,8 +309,10 @@ export class ProductListComponent implements OnInit {
   selectedProduct: Product = this.getEmptyProduct();
   
   // Invoicing state
+  selectedProductIds = new Set<string>();
   showInvoiceForm = false;
   showConfirmModal = false;
+  selectedProductsForInvoice: Product[] = [];
   tempInvoice!: Invoice;
 
   constructor(private dataService: DataService) {}
@@ -303,7 +321,31 @@ export class ProductListComponent implements OnInit {
     this.dataService.products$.subscribe(data => {
       this.products = data;
       this.onSearch();
+      // Clear selection if products change significantly
+      this.selectedProductIds.clear();
     });
+  }
+
+  // Multi-select logic
+  toggleSelect(id: string) {
+    if (this.selectedProductIds.has(id)) {
+      this.selectedProductIds.delete(id);
+    } else {
+      this.selectedProductIds.add(id);
+    }
+  }
+
+  toggleSelectAll() {
+    if (this.isAllSelected()) {
+      this.selectedProductIds.clear();
+    } else {
+      this.filteredProducts.forEach(p => this.selectedProductIds.add(p.id));
+    }
+  }
+
+  isAllSelected(): boolean {
+    return this.filteredProducts.length > 0 && 
+           this.filteredProducts.every(p => this.selectedProductIds.has(p.id));
   }
 
   viewDetail(product: Product) {
@@ -370,8 +412,15 @@ export class ProductListComponent implements OnInit {
   }
 
   createInvoice(product: Product) {
-    this.selectedProduct = product;
+    this.selectedProductsForInvoice = [product];
     this.showInvoiceForm = true;
+  }
+
+  createBulkInvoice() {
+    this.selectedProductsForInvoice = this.products.filter(p => this.selectedProductIds.has(p.id));
+    if (this.selectedProductsForInvoice.length > 0) {
+      this.showInvoiceForm = true;
+    }
   }
 
   onConfirmInvoice(invoice: Invoice) {
@@ -388,6 +437,7 @@ export class ProductListComponent implements OnInit {
   onFinalSubmit() {
     this.dataService.addInvoice(this.tempInvoice);
     this.showConfirmModal = false;
+    this.selectedProductIds.clear();
     alert('Lập hóa đơn thành công!');
   }
 }

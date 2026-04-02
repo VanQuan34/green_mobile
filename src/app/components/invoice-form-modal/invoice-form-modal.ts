@@ -17,17 +17,23 @@ import { DataService } from '../../services/data.service';
         </header>
 
         <div class="modal-body">
-          <!-- Product Info Summary -->
-          <div class="product-summary" *ngIf="product">
-            <div class="p-img">
-              <img [src]="product.image || 'https://placehold.co/60x60?text=Phone'" alt="phone">
+          <!-- Multi-Product Info Summary -->
+          <div class="products-container" *ngIf="products.length > 0">
+            <label class="section-label">Sản phẩm đã chọn ({{ products.length }})</label>
+            <div class="product-list-mini">
+              <div class="product-item-mini" *ngFor="let p of products">
+                <div class="p-img">
+                  <img [src]="p.image || 'https://placehold.co/40x40?text=Phone'" alt="phone">
+                </div>
+                <div class="p-info">
+                  <span class="p-name">{{ p.name }}</span>
+                  <span class="p-price">{{ p.sellingPrice | number }}đ</span>
+                </div>
+              </div>
             </div>
-            <div class="p-details">
-              <h4>{{ product.name }}</h4>
-              <p class="p-meta">
-                <span>{{ product.capacity }}</span> | <span>{{ product.color }}</span>
-              </p>
-              <p class="p-price">{{ product.sellingPrice | number }}đ</p>
+            <div class="total-summary-mini">
+              <span>Tổng cộng ({{ products.length }} SP):</span>
+              <mark>{{ totalAmount | number }}đ</mark>
             </div>
           </div>
 
@@ -71,7 +77,7 @@ import { DataService } from '../../services/data.service';
               <label class="checkbox-container">
                 <input type="checkbox" [(ngModel)]="payFull" name="payFull" (change)="onPayFullChange()">
                 <span class="checkmark"></span>
-                Thanh toán 100% (Giá: {{ product.sellingPrice | number }}đ)
+                Thanh toán 100% (Tổng: {{ totalAmount | number }}đ)
               </label>
 
               <div class="form-group animate-fade-in" *ngIf="!payFull">
@@ -172,37 +178,84 @@ import { DataService } from '../../services/data.service';
       flex-direction: column;
       gap: 1.5rem;
     }
-    
-    .product-summary {
-      display: flex;
-      gap: 1rem;
-      padding: 1rem;
+
+    .products-container {
       background: var(--bg-main);
+      border: 1px solid var(--border);
       border-radius: 0.75rem;
+      padding: 1rem;
+    }
+
+    .section-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+      display: block;
+      font-weight: 700;
+    }
+
+    .product-list-mini {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 150px;
+      overflow-y: auto;
+      margin-bottom: 1rem;
+      padding-right: 0.5rem;
+    }
+
+    .product-item-mini {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem;
+      background: white;
+      border-radius: 0.5rem;
       border: 1px solid var(--border);
     }
-    
-    .p-img img {
-      width: 60px;
-      height: 60px;
+
+    .product-item-mini .p-img img {
+      width: 32px;
+      height: 32px;
       object-fit: cover;
-      border-radius: 8px;
+      border-radius: 4px;
     }
-    
-    .p-details h4 {
-      font-weight: 700;
-      margin-bottom: 0.25rem;
+
+    .product-item-mini .p-info {
+      flex: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
     }
-    
-    .p-meta {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      margin-bottom: 0.25rem;
+
+    .product-item-mini .p-name {
+      font-weight: 600;
+      color: var(--text-main);
     }
-    
-    .p-price {
+
+    .product-item-mini .p-price {
       font-weight: 700;
       color: var(--primary);
+    }
+
+    .total-summary-mini {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 0.75rem;
+      border-top: 1px dashed var(--border);
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .total-summary-mini mark {
+      background: none;
+      color: var(--primary);
+      font-size: 1.1rem;
+      font-weight: 800;
     }
     
     .invoice-form {
@@ -328,7 +381,7 @@ import { DataService } from '../../services/data.service';
   `]
 })
 export class InvoiceFormModalComponent implements OnInit {
-  @Input() product!: Product;
+  @Input() products: Product[] = [];
   @Output() close = new EventEmitter<void>();
   @Output() confirm = new EventEmitter<Invoice>();
 
@@ -340,19 +393,24 @@ export class InvoiceFormModalComponent implements OnInit {
   constructor(private dataService: DataService) {}
 
   ngOnInit() {
+    const totalAmount = this.products.reduce((sum, p) => sum + p.sellingPrice, 0);
+    
     this.invoice = {
       id: '',
       buyerName: '',
       buyerAddress: '',
       buyerPhone: '',
-      productId: this.product.id,
-      productName: this.product.name,
-      productPrice: this.product.sellingPrice,
-      amountPaid: this.product.sellingPrice,
+      products: this.products,
+      totalAmount: totalAmount,
+      amountPaid: totalAmount,
       debt: 0,
       isFullyPaid: true,
       createdAt: new Date()
     };
+  }
+
+  get totalAmount(): number {
+    return this.invoice?.totalAmount || 0;
   }
 
   formatPrice(val: number): string {
@@ -375,7 +433,7 @@ export class InvoiceFormModalComponent implements OnInit {
 
   onPayFullChange() {
     if (this.payFull) {
-      this.invoice.amountPaid = this.product.sellingPrice;
+      this.invoice.amountPaid = this.totalAmount;
       this.invoice.debt = 0;
       this.invoice.isFullyPaid = true;
     } else {
@@ -385,7 +443,7 @@ export class InvoiceFormModalComponent implements OnInit {
   }
 
   calculateDebt() {
-    this.invoice.debt = Math.max(0, this.product.sellingPrice - (this.invoice.amountPaid || 0));
+    this.invoice.debt = Math.max(0, this.totalAmount - (this.invoice.amountPaid || 0));
     this.invoice.isFullyPaid = this.invoice.debt === 0;
   }
 

@@ -67,10 +67,23 @@ function gm_create_custom_tables() {
         UNIQUE KEY phone (phone)
     ) $charset_collate;";
 
+    // Bảng Chi tiết Hóa đơn [NEW]
+    $table_items = $wpdb->prefix . 'gm_invoice_items';
+    $sql_items = "CREATE TABLE $table_items (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        invoice_id varchar(50) NOT NULL,
+        product_id bigint(20) NOT NULL,
+        product_name varchar(255) NOT NULL,
+        price bigint(20) NOT NULL,
+        PRIMARY KEY  (id),
+        KEY invoice_id (invoice_id)
+    ) $charset_collate;";
+
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql_products);
     dbDelta($sql_invoices);
     dbDelta($sql_users);
+    dbDelta($sql_items);
 }
 
 /**
@@ -242,8 +255,9 @@ function gm_handle_get_invoices() {
     global $wpdb;
     $table_inv = $wpdb->prefix . 'gm_invoices';
     $table_usr = $wpdb->prefix . 'gm_users';
+    $table_items = $wpdb->prefix . 'gm_invoice_items';
     
-    // JOIN giữa Hóa đơn và Khách hàng để lấy thông tin hiển thị
+    // 1. Fetch main invoice data with buyer info
     $sql = "SELECT i.*, u.name as buyer_name, u.phone as buyer_phone, u.address as buyer_address 
             FROM $table_inv i 
             LEFT JOIN $table_usr u ON i.buyer_id = u.id 
@@ -251,17 +265,52 @@ function gm_handle_get_invoices() {
             
     $results = $wpdb->get_results($sql);
 
+    if (empty($results)) {
+        return new WP_REST_Response(array(), 200);
+    }
+
+    // 2. Fetch all items for these invoices in one go to be efficient
+    $invoice_ids = array_map(function($row) { return $row->id; }, $results);
+    $placeholders = implode(',', array_fill(0, count($invoice_ids), '%s'));
+    $items_sql = $wpdb->prepare("SELECT * FROM $table_items WHERE invoice_id IN ($placeholders)", $invoice_ids);
+    $all_items = $wpdb->get_results($items_sql);
+
+    // Group items by invoice_id
+    $items_by_invoice = array();
+    foreach ($all_items as $item) {
+        $items_by_invoice[$item->invoice_id][] = array(
+            'id' => (string)$item->product_id,
+            'name' => $item->product_name,
+            'sellingPrice' => (int)$item->price
+        );
+    }
+
+    // 3. Format result to match Angular Invoice interface
     foreach ($results as &$row) {
         $row->buyerName = $row->buyer_name;
         $row->buyerAddress = $row->buyer_address;
         $row->buyerPhone = $row->buyer_phone;
-        $row->productName = $row->product_name;
-        $row->productPrice = (int)$row->product_price;
+        
+        // Attach products array
+        $row->products = $items_by_invoice[$row->id] ?? array();
+        
+        // Totals & Status
         $row->amountPaid = (int)$row->amount_paid;
         $row->debt = (int)$row->debt;
         $row->isFullyPaid = (bool)$row->is_fully_paid;
-        $row->productId = (string)$row->product_id;
         $row->createdAt = $row->created_at;
+
+        // Calculate totalAmount from items if not present in main table
+        $total = 0;
+        foreach ($row->products as $p) {
+            $total += $p['sellingPrice'];
+        }
+        $row->totalAmount = $total;
+        
+        // Legacy fields for compatibility
+        $row->productName = $row->product_name;
+        $row->productPrice = (int)$row->product_price;
+        $row->productId = (string)$row->product_id;
         
         unset(
             $row->buyer_name, 
@@ -285,6 +334,7 @@ function gm_handle_create_invoice($request) {
     $params = $request->get_json_params();
     $table_inv = $wpdb->prefix . 'gm_invoices';
     $table_prod = $wpdb->prefix . 'gm_products';
+    $table_items = $wpdb->prefix . 'gm_invoice_items';
 
     // 1. Xử lý ID hóa đơn
     $invoice_id = (!empty($params['id'])) ? $params['id'] : 'INV-' . time() . '-' . rand(100, 999);
@@ -296,23 +346,49 @@ function gm_handle_create_invoice($request) {
         $params['buyerAddress'] ?? ''
     );
 
-    // 3. Chuẩn bị dữ liệu hóa đơn (Dùng buyer_id thay cho thông tin tên/địa chỉ)
+    // 3. Chuẩn bị dữ liệu hóa đơn chính
     $data = array(
         'id'             => $invoice_id,
-        'buyer_id'       => $buyer_id, // Khóa ngoại
-        'product_id'     => (int)($params['productId'] ?? 0),
-        'product_name'   => sanitize_text_field($params['productName'] ?? ''),
-        'product_price'  => (int)($params['productPrice'] ?? 0),
+        'buyer_id'       => $buyer_id,
         'amount_paid'    => (int)($params['amountPaid'] ?? 0),
         'debt'           => (int)($params['debt'] ?? 0),
         'is_fully_paid'  => (int)($params['isFullyPaid'] ?? 0)
     );
 
+    // Legacy support (optional: keep if you still have old code using these columns)
+    $data['product_id'] = (int)($params['productId'] ?? 0);
+    $data['product_name'] = sanitize_text_field($params['productName'] ?? '');
+    $data['product_price'] = (int)($params['productPrice'] ?? 0);
+
     $inserted = $wpdb->insert($table_inv, $data);
 
     if ($inserted) {
-        // Cập nhật trạng thái sản phẩm sang Đã bán
-        $wpdb->update($table_prod, array('sale' => 1), array('id' => $params['productId']));
+        // 4. Xử lý mảng sản phẩm chi tiết
+        $products = $params['products'] ?? array();
+        
+        // Nếu không có mảng products nhưng có single productId (từ app cũ), tạo mảng giả để đồng bộ
+        if (empty($products) && !empty($params['productId'])) {
+            $products[] = array(
+                'id' => $params['productId'],
+                'name' => $params['productName'] ?? '',
+                'sellingPrice' => $params['productPrice'] ?? 0
+            );
+        }
+
+        foreach ($products as $p) {
+            $p_id = (int)$p['id'];
+            
+            // Lưu vào bảng chi tiết
+            $wpdb->insert($table_items, array(
+                'invoice_id'   => $invoice_id,
+                'product_id'   => $p_id,
+                'product_name' => sanitize_text_field($p['name'] ?? ''),
+                'price'        => (int)($p['sellingPrice'] ?? 0)
+            ));
+
+            // Cập nhật trạng thái sản phẩm sang Đã bán
+            $wpdb->update($table_prod, array('sale' => 1), array('id' => $p_id));
+        }
         
         return new WP_REST_Response(array('id' => $invoice_id, 'message' => 'Invoice created'), 201);
     }
@@ -323,8 +399,15 @@ function gm_handle_create_invoice($request) {
 function gm_handle_delete_invoice($request) {
     global $wpdb;
     $id = $request['id'];
-    $table = $wpdb->prefix . 'gm_invoices';
-    $wpdb->delete($table, array('id' => $id));
+    $table_inv = $wpdb->prefix . 'gm_invoices';
+    $table_items = $wpdb->prefix . 'gm_invoice_items';
+    
+    // Xóa sản phẩm chi tiết trước
+    $wpdb->delete($table_items, array('invoice_id' => $id));
+    
+    // Xóa hóa đơn chính
+    $wpdb->delete($table_inv, array('id' => $id));
+    
     return new WP_REST_Response(array('message' => 'Deleted'), 200);
 }
 

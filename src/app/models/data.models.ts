@@ -17,9 +17,16 @@ export interface Invoice {
   buyerName: string;
   buyerAddress: string;
   buyerPhone: string;
-  productId: string;
-  productName: string;
-  productPrice: number;
+  
+  // New: Multiple products
+  products?: Product[]; 
+  totalAmount: number;
+
+  // Legacy (Keep for backward compatibility for now)
+  productId?: string;
+  productName?: string;
+  productPrice?: number;
+  
   amountPaid: number;
   debt: number;
   isFullyPaid: boolean;

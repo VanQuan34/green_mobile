@@ -31,8 +31,16 @@ import { Invoice } from '../../models/data.models';
               </td>
               <td>
                 <div class="product-info">
-                  <span class="p-name">{{ invoice.productName }}</span>
-                  <span class="p-price text-muted">{{ invoice.productPrice | number }}đ</span>
+                  <ng-container *ngIf="invoice.products && invoice.products.length > 0; else legacyProduct">
+                    <div class="p-item-tag" *ngFor="let p of invoice.products">
+                      <span class="p-name">{{ p.name }}</span>
+                      <span class="p-price text-muted">{{ p.sellingPrice | number }}đ</span>
+                    </div>
+                  </ng-container>
+                  <ng-template #legacyProduct>
+                    <span class="p-name">{{ invoice.productName }}</span>
+                    <span class="p-price text-muted">{{ invoice.productPrice | number }}đ</span>
+                  </ng-template>
                 </div>
               </td>
               <td class="font-bold">{{ invoice.amountPaid | number }}đ</td>
@@ -85,6 +93,18 @@ import { Invoice } from '../../models/data.models';
     
     .phone, .p-price {
       font-size: 0.75rem;
+    }
+    
+    .p-item-tag {
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px dashed rgba(0,0,0,0.05);
+    }
+    
+    .p-item-tag:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
     }
     
     .debt-amount {

@@ -9,7 +9,11 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./components/layout/layout.component').then(m => m.LayoutComponent),
     children: [
-      { path: '', redirectTo: 'products', pathMatch: 'full' },
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+      { 
+        path: 'dashboard', 
+        loadComponent: () => import('./pages/dashboard/dashboard').then(m => m.DashboardComponent) 
+      },
       { 
         path: 'products', 
         loadComponent: () => import('./pages/product-list/product-list').then(m => m.ProductListComponent) 
@@ -17,6 +21,10 @@ export const routes: Routes = [
       { 
         path: 'invoices', 
         loadComponent: () => import('./pages/invoice-list/invoice-list').then(m => m.InvoiceListComponent) 
+      },
+      { 
+        path: 'debts', 
+        loadComponent: () => import('./pages/debt-list/debt-list').then(m => m.DebtListComponent) 
       }
     ]
   },

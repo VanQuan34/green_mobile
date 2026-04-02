@@ -2,13 +2,14 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Product } from '../../models/data.models';
+import { DataService } from '../../services/data.service';
 
 @Component({
   selector: 'app-product-modal',
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="modal-overlay animate-fade-in" (click)="onClose()">
+    <div class="modal-overlay animate-fade-in">
       <div class="modal-content glass-card" (click)="$event.stopPropagation()">
         <header class="modal-header">
           <h3>{{ product.id ? 'Cập nhật' : 'Thêm' }} sản phẩm</h3>
@@ -19,24 +20,24 @@ import { Product } from '../../models/data.models';
           <form #productForm="ngForm" class="product-form">
             <div class="form-row">
               <div class="form-group flex-2">
-                <label>Tên điện thoại</label>
+                <label class="required">Tên điện thoại</label>
                 <input type="text" [(ngModel)]="product.name" name="name" placeholder="Ví dụ: iPhone 15 Pro Max" required>
               </div>
-              <div class="form-group flex-1">
-                <label>IMEI</label>
+              <div class="form-group flex-2">
+                <label class="required">IMEI</label>
                 <input type="text" [(ngModel)]="product.imei" name="imei" placeholder="Nhập IMEI..." required>
               </div>
             </div>
 
             <div class="form-row">
               <div class="form-group">
-                <label>Dung lượng</label>
+                <label class="required">Dung lượng</label>
                 <select [(ngModel)]="product.capacity" name="capacity" required>
                   <option *ngFor="let cap of capacities" [value]="cap">{{ cap }}</option>
                 </select>
               </div>
               <div class="form-group">
-                <label>Màu sắc</label>
+                <label class="required">Màu sắc</label>
                 <input type="text" [(ngModel)]="product.color" name="color" placeholder="Ví dụ: Titan Tự Nhiên" required>
               </div>
             </div>
@@ -53,12 +54,35 @@ import { Product } from '../../models/data.models';
 
             <div class="form-row">
               <div class="form-group">
-                <label>Giá gốc (đ)</label>
-                <input type="number" [(ngModel)]="product.originalPrice" name="originalPrice" required>
+                <label class="required">Giá gốc (đ)</label>
+                <input 
+                  type="text" 
+                  [ngModel]="formatPrice(product.originalPrice)" 
+                  (ngModelChange)="product.originalPrice = parsePrice($event)"
+                  name="originalPrice" 
+                  required
+                  placeholder="0"
+                >
+                <span class="price-words" *ngIf="product.originalPrice > 0">
+                  {{ getPriceWords(product.originalPrice) }}
+                </span>
               </div>
               <div class="form-group">
-                <label>Giá bán (đ)</label>
-                <input type="number" [(ngModel)]="product.sellingPrice" name="sellingPrice" required>
+                <label class="required">Giá bán (đ)</label>
+                <input 
+                  type="text" 
+                  [ngModel]="formatPrice(product.sellingPrice)" 
+                  (ngModelChange)="product.sellingPrice = parsePrice($event)"
+                  name="sellingPrice" 
+                  required
+                  placeholder="0"
+                >
+                <span class="price-words" *ngIf="product.sellingPrice > 0">
+                  {{ getPriceWords(product.sellingPrice) }}
+                </span>
+                <span class="price-warning" *ngIf="product.originalPrice > 0 && product.sellingPrice > 0 && product.sellingPrice < product.originalPrice">
+                  ⚠️ Giá bán đang thấp hơn giá gốc!
+                </span>
               </div>
             </div>
 
@@ -83,22 +107,30 @@ import { Product } from '../../models/data.models';
       position: fixed;
       inset: 0;
       background: rgba(0, 0, 0, 0.4);
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(8px);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 1000;
+      z-index: 2000;
       padding: 1rem;
     }
     
     .modal-content {
       width: 100%;
       max-width: 600px;
+      max-height: 90vh;
       background: white;
       display: flex;
       flex-direction: column;
-      max-height: 90vh;
-      box-shadow: var(--shadow-lg);
+      border-radius: 1.25rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      overflow: hidden;
+      animation: modalScale 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes modalScale {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
     }
     
     .modal-header {
@@ -110,7 +142,7 @@ import { Product } from '../../models/data.models';
     }
     
     .modal-header h3 {
-      font-size: 1.1rem;
+      font-size: 1.15rem;
       font-weight: 700;
       color: var(--text-main);
     }
@@ -126,12 +158,13 @@ import { Product } from '../../models/data.models';
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.2s;
+      transition: all 0.2s;
     }
     
     .close-btn:hover {
       background: var(--primary-light);
       color: var(--primary-dark);
+      transform: rotate(90deg);
     }
     
     .modal-body {
@@ -189,6 +222,20 @@ import { Product } from '../../models/data.models';
     textarea {
       resize: vertical;
     }
+
+    .price-words {
+      font-size: 0.75rem;
+      color: var(--primary);
+      font-style: italic;
+      margin-top: -0.25rem;
+    }
+
+    .price-warning {
+      font-size: 0.75rem;
+      color: var(--red);
+      font-weight: 600;
+      margin-top: 0.1rem;
+    }
     
     .modal-footer {
       padding: 1.25rem 1.5rem;
@@ -196,6 +243,31 @@ import { Product } from '../../models/data.models';
       display: flex;
       justify-content: flex-end;
       gap: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .form-row {
+        flex-direction: column;
+      }
+      
+      .img-input-container {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .modal-footer {
+        flex-direction: column-reverse;
+      }
+
+      .modal-footer button {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .modal-content {
+        max-height: 95vh;
+        border-radius: 1rem;
+      }
     }
   `]
 })
@@ -205,6 +277,20 @@ export class ProductModalComponent {
   @Output() save = new EventEmitter<Product>();
 
   capacities = ['16GB', '32GB', '64GB', '128GB', '256GB', '512GB', '1TB', '2TB'];
+
+  constructor(private dataService: DataService) {}
+
+  formatPrice(val: number): string {
+    return this.dataService.formatVND(val);
+  }
+
+  parsePrice(val: string): number {
+    return this.dataService.parseVND(val);
+  }
+
+  getPriceWords(val: number): string {
+    return this.dataService.numberToVietnameseWords(val);
+  }
 
   private getEmptyProduct(): Product {
     return {

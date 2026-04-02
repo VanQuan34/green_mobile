@@ -33,7 +33,7 @@ import { DataService } from '../../services/data.service';
 
           <form #invoiceForm="ngForm" class="invoice-form">
             <div class="form-group autocomplete-container">
-              <label>Họ và tên khách hàng</label>
+              <label class="required">Họ và tên khách hàng</label>
               <input 
                 type="text" 
                 [(ngModel)]="invoice.buyerName" 
@@ -58,12 +58,12 @@ import { DataService } from '../../services/data.service';
             </div>
 
             <div class="form-group">
-              <label>Số điện thoại</label>
+              <label class="required">Số điện thoại</label>
               <input type="text" [(ngModel)]="invoice.buyerPhone" name="buyerPhone" placeholder="0xxx..." required>
             </div>
 
             <div class="form-group">
-              <label>Địa chỉ</label>
+              <label class="required">Địa chỉ</label>
               <input type="text" [(ngModel)]="invoice.buyerAddress" name="buyerAddress" placeholder="Địa chỉ giao hàng/liên hệ..." required>
             </div>
 
@@ -75,10 +75,22 @@ import { DataService } from '../../services/data.service';
               </label>
 
               <div class="form-group animate-fade-in" *ngIf="!payFull">
-                <label>Số tiền trả trước (đ)</label>
-                <input type="number" [(ngModel)]="invoice.amountPaid" name="amountPaid" (input)="calculateDebt()" required>
+                <label class="required">Số tiền trả trước (đ)</label>
+                <input 
+                  type="text" 
+                  [ngModel]="formatPrice(invoice.amountPaid)" 
+                  (ngModelChange)="onAmountPaidChange($event)"
+                  name="amountPaid" 
+                  required
+                >
+                <span class="price-words" *ngIf="invoice.amountPaid > 0">
+                  {{ getPriceWords(invoice.amountPaid) }}
+                </span>
                 <p class="debt-preview" *ngIf="invoice.debt > 0">
                   Còn nợ: <strong>{{ invoice.debt | number }}đ</strong>
+                </p>
+                <p class="debt-preview text-green" *ngIf="invoice.debt === 0">
+                  ✓ Đã thanh toán hết
                 </p>
               </div>
             </div>
@@ -99,11 +111,11 @@ import { DataService } from '../../services/data.service';
       position: fixed;
       inset: 0;
       background: rgba(0, 0, 0, 0.4);
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(8px);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 1000;
+      z-index: 2000;
       padding: 1rem;
     }
     
@@ -111,10 +123,18 @@ import { DataService } from '../../services/data.service';
       width: 100%;
       max-width: 500px;
       max-height: 90vh;
-      overflow: hidden;
+      background: white;
       display: flex;
       flex-direction: column;
-      box-shadow: var(--shadow-lg);
+      border-radius: 1.25rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      overflow: hidden;
+      animation: modalScale 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes modalScale {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
     }
     
     .modal-header {
@@ -131,6 +151,18 @@ import { DataService } from '../../services/data.service';
       font-size: 1.25rem;
       color: var(--text-muted);
       cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .close-btn:hover {
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      transform: rotate(90deg);
     }
     
     .modal-body {
@@ -256,6 +288,13 @@ import { DataService } from '../../services/data.service';
       font-size: 0.85rem;
       color: var(--red);
     }
+
+    .price-words {
+      font-size: 0.75rem;
+      color: var(--primary);
+      font-style: italic;
+      margin-top: -0.25rem;
+    }
     
     .modal-footer {
       padding: 1.25rem 1.5rem;
@@ -263,6 +302,28 @@ import { DataService } from '../../services/data.service';
       display: flex;
       justify-content: flex-end;
       gap: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .modal-footer {
+        flex-direction: column-reverse;
+      }
+
+      .modal-footer button {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .product-summary {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+
+      .modal-content {
+        max-height: 95vh;
+        border-radius: 1rem;
+      }
     }
   `]
 })
@@ -292,6 +353,24 @@ export class InvoiceFormModalComponent implements OnInit {
       isFullyPaid: true,
       createdAt: new Date()
     };
+  }
+
+  formatPrice(val: number): string {
+    return this.dataService.formatVND(val);
+  }
+
+  parsePrice(val: string): number {
+    return this.dataService.parseVND(val);
+  }
+
+  getPriceWords(val: number): string {
+    return this.dataService.numberToVietnameseWords(val);
+  }
+
+  onAmountPaidChange(val: string) {
+    const num = this.parsePrice(val);
+    this.invoice.amountPaid = num;
+    this.calculateDebt();
   }
 
   onPayFullChange() {

@@ -70,11 +70,11 @@ import { Invoice } from '../../models/data.models';
       position: fixed;
       inset: 0;
       background: rgba(0, 0, 0, 0.4);
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(8px);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 1100;
+      z-index: 2000;
       padding: 1rem;
     }
     
@@ -82,7 +82,17 @@ import { Invoice } from '../../models/data.models';
       width: 100%;
       max-width: 450px;
       background: white;
-      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      border-radius: 1.25rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      overflow: hidden;
+      animation: modalScale 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes modalScale {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
     }
     
     .modal-header {
@@ -93,8 +103,29 @@ import { Invoice } from '../../models/data.models';
       align-items: center;
     }
     
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .close-btn:hover {
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      transform: rotate(90deg);
+    }
+    
     .modal-body {
       padding: 1.5rem;
+      overflow-y: auto;
     }
     
     .confirm-summary {
@@ -110,6 +141,7 @@ import { Invoice } from '../../models/data.models';
       color: var(--text-muted);
       margin-bottom: 0.5rem;
       display: block;
+      font-weight: 700;
     }
     
     .info-box {
@@ -144,11 +176,11 @@ import { Invoice } from '../../models/data.models';
       margin-top: 0.5rem;
       padding-top: 0.5rem;
       border-top: 1px dashed rgba(0,0,0,0.1);
-      font-weight: 700;
+      font-weight: 800;
     }
     
     .text-red { color: var(--red); }
-    .text-green { color: var(--green); font-weight: 700; }
+    .text-green { color: var(--green); font-weight: 800; }
     
     .modal-footer {
       padding: 1.25rem 1.5rem;
@@ -156,6 +188,22 @@ import { Invoice } from '../../models/data.models';
       display: flex;
       justify-content: flex-end;
       gap: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .modal-footer {
+        flex-direction: column-reverse;
+      }
+
+      .modal-footer button {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .modal-content {
+        max-height: 95vh;
+        border-radius: 1rem;
+      }
     }
   `]
 })

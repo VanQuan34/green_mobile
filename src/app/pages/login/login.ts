@@ -21,7 +21,7 @@ import { AuthService } from '../../services/auth.service';
         
         <form (ngSubmit)="onLogin()">
           <div class="form-group">
-            <label>Mật khẩu quản trị</label>
+            <label class="required">Mật khẩu quản trị</label>
             <input 
               type="password" 
               [(ngModel)]="password" 
@@ -123,6 +123,17 @@ import { AuthService } from '../../services/auth.service';
     .login-footer {
       margin-top: 2rem;
       opacity: 0.6;
+    }
+
+    @media (max-width: 480px) {
+      .login-card {
+        padding: 1.5rem;
+        margin: 1rem;
+      }
+      
+      .logo h1 {
+        font-size: 1.25rem;
+      }
     }
   `]
 })

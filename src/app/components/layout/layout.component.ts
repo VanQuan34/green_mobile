@@ -8,23 +8,33 @@ import { AuthService } from '../../services/auth.service';
   standalone: true,
   imports: [CommonModule, RouterModule],
   template: `
-    <div class="dashboard-layout">
-      <aside class="sidebar glass-card">
+    <div class="dashboard-layout" [class.mobile-menu-open]="isMobileMenuOpen">
+      <div class="sidebar-overlay" (click)="toggleMobileMenu()"></div>
+      <aside class="sidebar glass-card" [class.active]="isMobileMenuOpen">
         <div class="sidebar-header">
           <div class="logo">
             <span class="dot"></span>
             <h2>Di Động Xanh</h2>
           </div>
+          <button class="menu-close-btn" (click)="toggleMobileMenu()">✕</button>
         </div>
         
         <nav class="sidebar-nav">
-          <a routerLink="/products" routerLinkActive="active" class="nav-item">
+          <a routerLink="/dashboard" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()">
+            <span class="icon">📊</span>
+            <span>Tổng quan</span>
+          </a>
+          <a routerLink="/products" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()">
             <span class="icon">📱</span>
             <span>Sản phẩm</span>
           </a>
-          <a routerLink="/invoices" routerLinkActive="active" class="nav-item">
+          <a routerLink="/invoices" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()">
             <span class="icon">🧾</span>
             <span>Hóa đơn</span>
+          </a>
+          <a routerLink="/debts" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()">
+            <span class="icon">💳</span>
+            <span>Công nợ</span>
           </a>
         </nav>
         
@@ -39,11 +49,12 @@ import { AuthService } from '../../services/auth.service';
       <main class="main-content">
         <header class="top-bar">
           <div class="page-info">
+            <button class="hamburger-btn" (click)="toggleMobileMenu()">☰</button>
             <h1 class="page-title">{{ getCurrentPageName() }}</h1>
           </div>
           <div class="user-profile">
             <div class="avatar">AD</div>
-            <span class="username">Quản trị viên</span>
+            <span class="username">Admin</span>
           </div>
         </header>
         
@@ -58,6 +69,16 @@ import { AuthService } from '../../services/auth.service';
       display: flex;
       height: 100vh;
       background-color: var(--bg-main);
+      overflow: hidden;
+    }
+    
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(4px);
+      z-index: 900;
     }
     
     .sidebar {
@@ -66,11 +87,24 @@ import { AuthService } from '../../services/auth.service';
       display: flex;
       flex-direction: column;
       border-radius: 1.25rem;
-      z-index: 10;
+      z-index: 1000;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
     .sidebar-header {
       padding: 2rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .menu-close-btn {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      cursor: pointer;
     }
     
     .logo {
@@ -149,6 +183,28 @@ import { AuthService } from '../../services/auth.service';
       margin-bottom: 0.5rem;
     }
     
+    .page-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .hamburger-btn {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--text-main);
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+    }
+
+    .hamburger-btn:hover {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+    
     .page-title {
       font-size: 1.5rem;
       font-weight: 700;
@@ -185,10 +241,65 @@ import { AuthService } from '../../services/auth.service';
       overflow-y: auto;
       padding: 0.5rem 1.5rem 2rem 1.5rem;
     }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        left: -280px;
+        top: 0;
+        bottom: 0;
+        margin: 0;
+        border-radius: 0;
+        width: 260px;
+        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.1);
+      }
+
+      .sidebar.active {
+        left: 0;
+      }
+
+      .mobile-menu-open .sidebar-overlay {
+        display: block;
+      }
+
+      .menu-close-btn {
+        display: block;
+      }
+
+      .hamburger-btn {
+        display: block;
+      }
+
+      .main-content {
+        padding: 0.5rem;
+      }
+
+      .page-title {
+        font-size: 1.25rem;
+      }
+
+      .username {
+        display: none;
+      }
+
+      .content-area {
+        padding: 0.5rem;
+      }
+    }
   `]
 })
 export class LayoutComponent {
+  isMobileMenuOpen = false;
+
   constructor(private authService: AuthService, private router: Router) {}
+
+  toggleMobileMenu() {
+    this.isMobileMenuOpen = !this.isMobileMenuOpen;
+  }
+
+  closeMobileMenu() {
+    this.isMobileMenuOpen = false;
+  }
 
   onLogout() {
     this.authService.logout();
@@ -196,8 +307,10 @@ export class LayoutComponent {
 
   getCurrentPageName(): string {
     const url = this.router.url;
-    if (url.includes('products')) return 'Danh sách sản phẩm';
-    if (url.includes('invoices')) return 'Danh sách hóa đơn';
-    return 'Tổng quan';
+    if (url.includes('dashboard')) return 'Báo cáo Tổng quan';
+    if (url.includes('products')) return 'Sản phẩm';
+    if (url.includes('invoices')) return 'Hóa đơn';
+    if (url.includes('debts')) return 'Quản lý Công nợ';
+    return 'Di Động Xanh';
   }
 }

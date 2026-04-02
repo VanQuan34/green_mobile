@@ -9,6 +9,7 @@ export interface Product {
   status: string;
   originalPrice: number;
   sellingPrice: number;
+  sale?: boolean;
 }
 
 export interface Invoice {

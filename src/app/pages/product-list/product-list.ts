@@ -7,6 +7,7 @@ import { Product, Invoice } from '../../models/data.models';
 import { ProductModalComponent } from '../../components/product-modal/product-modal';
 import { InvoiceFormModalComponent } from '../../components/invoice-form-modal/invoice-form-modal';
 import { InvoiceConfirmModalComponent } from '../../components/invoice-confirm-modal/invoice-confirm-modal';
+import { ProductDetailModalComponent } from '../../components/product-detail/product-detail';
 
 @Component({
   selector: 'app-product-list',
@@ -16,7 +17,8 @@ import { InvoiceConfirmModalComponent } from '../../components/invoice-confirm-m
     FormsModule, 
     ProductModalComponent,
     InvoiceFormModalComponent,
-    InvoiceConfirmModalComponent
+    InvoiceConfirmModalComponent,
+    ProductDetailModalComponent
   ],
   template: `
     <div class="product-page">
@@ -53,7 +55,7 @@ import { InvoiceConfirmModalComponent } from '../../components/invoice-confirm-m
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let product of filteredProducts; let i = index">
+            <tr *ngFor="let product of filteredProducts; let i = index" (click)="viewDetail(product)" class="clickable-row">
               <td>{{ i + 1 }}</td>
               <td>
                 <div class="product-img">
@@ -68,10 +70,10 @@ import { InvoiceConfirmModalComponent } from '../../components/invoice-confirm-m
               <td class="text-muted">{{ product.originalPrice | number }}đ</td>
               <td class="font-bold text-primary">{{ product.sellingPrice | number }}đ</td>
               <td class="actions-cell">
-                <div class="btn-group">
-                  <button class="btn-icon btn-edit" title="Sửa" (click)="editProduct(product)">✏️</button>
-                  <button class="btn-icon btn-delete" title="Xóa" (click)="deleteProduct(product.id)">🗑️</button>
-                  <button class="btn-icon btn-invoice" title="Lập hóa đơn" (click)="createInvoice(product)">🧾</button>
+                <div class="btn-group" (click)="$event.stopPropagation()">
+                  <button class="btn-icon btn-edit tooltip-left" data-tooltip="Sửa" (click)="editProduct(product)">✏️</button>
+                  <button class="btn-icon btn-delete tooltip-left" data-tooltip="Xóa" (click)="deleteProduct(product.id)">🗑️</button>
+                  <button class="btn-icon btn-invoice tooltip-left" data-tooltip="Lập hóa đơn" (click)="createInvoice(product)">🧾</button>
                 </div>
               </td>
             </tr>
@@ -86,6 +88,14 @@ import { InvoiceConfirmModalComponent } from '../../components/invoice-confirm-m
           </tbody>
         </table>
       </div>
+
+      <app-product-detail-modal
+        *ngIf="showDetailModal"
+        [product]="selectedProduct"
+        (close)="showDetailModal = false"
+        (edit)="onEditFromDetail($event)"
+        (invoice)="onInvoiceFromDetail($event)"
+      ></app-product-detail-modal>
 
       <app-product-modal 
         *ngIf="showModal" 
@@ -114,6 +124,15 @@ import { InvoiceConfirmModalComponent } from '../../components/invoice-confirm-m
       display: flex;
       flex-direction: column;
       gap: 1.5rem;
+    }
+
+    .clickable-row {
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .clickable-row:hover {
+      background: #f8fafc;
     }
     
     .action-bar {
@@ -243,6 +262,26 @@ import { InvoiceConfirmModalComponent } from '../../components/invoice-confirm-m
     .empty-msg span {
       font-size: 3rem;
     }
+
+    @media (max-width: 768px) {
+      .action-bar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .search-box {
+        max-width: none;
+      }
+      
+      .btn-primary {
+        justify-content: center;
+      }
+
+      .table-container {
+        margin: 0 -0.5rem;
+        border-radius: 0;
+      }
+    }
   `]
 })
 export class ProductListComponent implements OnInit {
@@ -250,6 +289,7 @@ export class ProductListComponent implements OnInit {
   filteredProducts: Product[] = [];
   searchQuery = '';
   showModal = false;
+  showDetailModal = false;
   selectedProduct: Product = this.getEmptyProduct();
   
   // Invoicing state
@@ -264,6 +304,21 @@ export class ProductListComponent implements OnInit {
       this.products = data;
       this.onSearch();
     });
+  }
+
+  viewDetail(product: Product) {
+    this.selectedProduct = { ...product };
+    this.showDetailModal = true;
+  }
+
+  onEditFromDetail(product: Product) {
+    this.showDetailModal = false;
+    this.editProduct(product);
+  }
+
+  onInvoiceFromDetail(product: Product) {
+    this.showDetailModal = false;
+    this.createInvoice(product);
   }
 
   onSearch() {

@@ -1,13 +1,20 @@
-import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, map } from 'rxjs';
+import { Injectable, inject } from '@angular/core';
+import { BehaviorSubject, Observable, map, of } from 'rxjs';
 import { Product, Invoice } from '../models/data.models';
+import { HttpClient } from '@angular/common/http';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DataService {
+  private apiUrl = 'https://quantv.store/wp-json/gm/v1'; // Đổi URL này cho đúng với WordPress của bạn
+  private http = inject(HttpClient);
+  
   private productsSubject = new BehaviorSubject<Product[]>([]);
   private invoicesSubject = new BehaviorSubject<Invoice[]>([]);
+  private customersSubject = new BehaviorSubject<any[]>([]);
+  
+  customers$ = this.customersSubject.asObservable();
 
   products$ = this.productsSubject.asObservable().pipe(
     map(list => list.filter(p => !p.sale))
@@ -18,11 +25,22 @@ export class DataService {
     this.loadInitialData();
   }
 
-  private loadInitialData() {
-    const products = JSON.parse(localStorage.getItem('products') || '[]');
-    const invoices = JSON.parse(localStorage.getItem('invoices') || '[]');
-    this.productsSubject.next(products);
-    this.invoicesSubject.next(invoices);
+  loadInitialData() {
+    // Tải sản phẩm từ API
+    this.http.get<Product[]>(`${this.apiUrl}/products`).subscribe(products => {
+      this.productsSubject.next(products);
+    });
+
+    // Tải hóa đơn từ API
+    this.http.get<Invoice[]>(`${this.apiUrl}/invoices`).subscribe(invoices => {
+      this.invoicesSubject.next(invoices);
+    });
+
+    // Tải khách hàng từ API và cập nhật Cache mỗi lần vào site
+    this.http.get<any[]>(`${this.apiUrl}/customers`).subscribe(customers => {
+      this.customersSubject.next(customers);
+      localStorage.setItem('gm_customers_cache', JSON.stringify(customers));
+    });
   }
 
   // Product Methods
@@ -31,26 +49,21 @@ export class DataService {
   }
 
   addProduct(product: Product) {
-    const current = this.getProducts();
-    const updated = [...current, { ...product, id: Date.now().toString(), sale: false }];
-    this.saveProducts(updated);
+    this.http.post(`${this.apiUrl}/products`, product).subscribe(() => {
+      this.loadInitialData();
+    });
   }
 
   updateProduct(product: Product) {
-    const current = this.getProducts();
-    const updated = current.map(p => p.id === product.id ? product : p);
-    this.saveProducts(updated);
+    this.http.put(`${this.apiUrl}/products/${product.id}`, product).subscribe(() => {
+      this.loadInitialData();
+    });
   }
 
   deleteProduct(id: string) {
-    const current = this.getProducts();
-    const updated = current.filter(p => p.id !== id);
-    this.saveProducts(updated);
-  }
-
-  private saveProducts(products: Product[]) {
-    localStorage.setItem('products', JSON.stringify(products));
-    this.productsSubject.next(products);
+    this.http.delete(`${this.apiUrl}/products/${id}`).subscribe(() => {
+      this.loadInitialData();
+    });
   }
 
   // Invoice Methods
@@ -59,39 +72,47 @@ export class DataService {
   }
 
   addInvoice(invoice: Invoice) {
-    const currentInvoices = this.getInvoices();
-    const updatedInvoices = [...currentInvoices, { ...invoice, id: Date.now().toString(), createdAt: new Date() }];
-    this.saveInvoices(updatedInvoices);
+    this.http.post(`${this.apiUrl}/invoices`, invoice).subscribe(() => {
+      this.loadInitialData();
+      this.updateCustomerCache(invoice);
+    });
+  }
 
-    // Cập nhật trạng thái sản phẩm là Đã bán
-    const currentProducts = this.getProducts();
-    const updatedProducts = currentProducts.map(p => 
-      p.id === invoice.productId ? { ...p, sale: true } : p
-    );
-    this.saveProducts(updatedProducts);
+  private updateCustomerCache(invoice: Invoice) {
+    const current = this.customersSubject.value;
+    const exists = current.find(c => c.phone === invoice.buyerPhone);
+    
+    let updated;
+    const newCustomer = {
+        name: invoice.buyerName,
+        phone: invoice.buyerPhone,
+        address: invoice.buyerAddress
+    };
+
+    if (exists) {
+        updated = current.map(c => c.phone === invoice.buyerPhone ? newCustomer : c);
+    } else {
+        updated = [...current, newCustomer];
+    }
+
+    this.customersSubject.next(updated);
+    localStorage.setItem('gm_customers_cache', JSON.stringify(updated));
   }
 
   deleteInvoice(id: string) {
-    const current = this.getInvoices();
-    const updated = current.filter(i => i.id !== id);
-    this.saveInvoices(updated);
+    this.http.delete(`${this.apiUrl}/invoices/${id}`).subscribe(() => {
+      this.loadInitialData();
+    });
   }
 
-  private saveInvoices(invoices: Invoice[]) {
-    localStorage.setItem('invoices', JSON.stringify(invoices));
-    this.invoicesSubject.next(invoices);
-  }
-
-  // Get unique customers for autocomplete
-  getExistingCustomers() {
-    const invoices = this.getInvoices();
-    const customers = invoices.map(i => ({
-      name: i.buyerName,
-      address: i.buyerAddress,
-      phone: i.buyerPhone
-    }));
-    // Remove duplicates by phone
-    return Array.from(new Map(customers.map(c => [c.phone, c])).values());
+  // Get unique customers from sync cache (always refreshed at startup)
+  getExistingCustomers(): Observable<any[]> {
+    const cached = localStorage.getItem('gm_customers_cache');
+    if (cached) {
+      return of(JSON.parse(cached));
+    } else {
+      return this.customers$; // Trả về observable hiện tại nếu cache chưa kịp load
+    }
   }
 
   // Currency Utilities

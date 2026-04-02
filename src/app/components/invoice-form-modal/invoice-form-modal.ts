@@ -9,7 +9,7 @@ import { DataService } from '../../services/data.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="modal-overlay animate-fade-in" (click)="onClose()">
+    <div class="modal-overlay animate-fade-in">
       <div class="modal-content glass-card" (click)="$event.stopPropagation()">
         <header class="modal-header">
           <h3>Lập hóa đơn bán hàng</h3>
@@ -394,12 +394,13 @@ export class InvoiceFormModalComponent implements OnInit {
       this.showSuggestions = false;
       return;
     }
-    const all = this.dataService.getExistingCustomers();
-    this.suggestions = all.filter(c => 
-      c.name.toLowerCase().includes(this.invoice.buyerName.toLowerCase()) ||
-      c.phone.includes(this.invoice.buyerName)
-    );
-    this.showSuggestions = true;
+    this.dataService.getExistingCustomers().subscribe(all => {
+      this.suggestions = all.filter(c => 
+        c.name.toLowerCase().includes(this.invoice.buyerName.toLowerCase()) ||
+        c.phone.includes(this.invoice.buyerName)
+      );
+      this.showSuggestions = this.suggestions.length > 0;
+    });
   }
 
   selectCustomer(customer: any) {

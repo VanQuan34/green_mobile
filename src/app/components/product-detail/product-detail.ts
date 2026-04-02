@@ -7,7 +7,7 @@ import { Product } from '../../models/data.models';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="modal-overlay animate-fade-in" (click)="onClose()">
+    <div class="modal-overlay animate-fade-in">
       <div class="modal-content glass-card" (click)="$event.stopPropagation()">
         <header class="modal-header">
           <h3>Chi tiết sản phẩm</h3>

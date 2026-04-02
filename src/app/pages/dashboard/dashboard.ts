@@ -29,6 +29,13 @@ Chart.register(...registerables);
           </div>
         </div>
         <div class="kpi-card glass-card">
+          <div class="kpi-icon orange">📈</div>
+          <div class="kpi-content">
+            <label>Lợi nhuận dự kiến</label>
+            <div class="value text-green">{{ stats.totalProfit | number }}đ</div>
+          </div>
+        </div>
+        <div class="kpi-card glass-card">
           <div class="kpi-icon yellow">⏳</div>
           <div class="kpi-content">
             <label>Tổng công nợ</label>
@@ -104,6 +111,7 @@ Chart.register(...registerables);
 
     .kpi-icon.blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
     .kpi-icon.green { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+    .kpi-icon.orange { background: rgba(249, 115, 22, 0.1); color: #f97316; }
     .kpi-icon.yellow { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
     .kpi-icon.purple { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
 
@@ -122,6 +130,7 @@ Chart.register(...registerables);
     }
 
     .text-red { color: #ef4444 !important; }
+    .text-green { color: #10b981 !important; }
 
     .charts-grid {
       display: grid;
@@ -181,6 +190,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   stats = {
     totalRevenue: 0,
     totalPaid: 0,
+    totalProfit: 0,
     totalDebt: 0,
     soldCount: 0,
     inventoryCount: 0
@@ -192,7 +202,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   constructor(private dataService: DataService) {}
 
   ngOnInit() {
-    this.calculateStats();
+    this.dataService.products$.subscribe(() => this.calculateStats());
+    this.dataService.invoices$.subscribe(() => this.calculateStats());
   }
 
   ngAfterViewInit() {
@@ -211,6 +222,13 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.stats.totalDebt = invoices.reduce((sum, i) => sum + i.debt, 0);
     this.stats.soldCount = invoices.length;
     this.stats.inventoryCount = products.filter(p => !p.sale).length;
+
+    // Tính lợi nhuận: Tổng (Giá bán hóa đơn - Giá nhập sản phẩm)
+    this.stats.totalProfit = invoices.reduce((sum, inv) => {
+      const product = products.find(p => p.id === inv.productId);
+      const cost = product ? product.originalPrice : 0;
+      return sum + (inv.productPrice - cost);
+    }, 0);
   }
 
   private initSalesChart() {

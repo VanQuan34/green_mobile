@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, OnDestroy, Output, ElementRef, Renderer2 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Product, Invoice } from '../../models/data.models';
@@ -9,10 +9,10 @@ import { DataService } from '../../services/data.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="modal-overlay animate-fade-in">
+    <div class="modal-overlay animate-fade-in" (click)="onClose()">
       <div class="modal-content glass-card" (click)="$event.stopPropagation()">
         <header class="modal-header">
-          <h3>Lập hóa đơn bán hàng</h3>
+          <h3>{{ editInvoice ? 'Chỉnh sửa hóa đơn' : 'Lập hóa đơn bán hàng' }}</h3>
           <button class="close-btn" (click)="onClose()">✕</button>
         </header>
 
@@ -21,13 +21,19 @@ import { DataService } from '../../services/data.service';
           <div class="products-container" *ngIf="products.length > 0">
             <label class="section-label">Sản phẩm đã chọn ({{ products.length }})</label>
             <div class="product-list-mini">
-              <div class="product-item-mini" *ngFor="let p of products">
+              <div class="product-item-mini animate-fade-in" *ngFor="let p of products; let idx = index">
                 <div class="p-img">
                   <img [src]="p.image || 'https://placehold.co/40x40?text=Phone'" alt="phone">
                 </div>
                 <div class="p-info">
-                  <span class="p-name">{{ p.name }}</span>
-                  <span class="p-price">{{ p.sellingPrice | number }}đ</span>
+                  <div class="p-main-info">
+                    <span class="p-name">{{ p.name }}</span>
+                    <span class="p-specs">{{ p.capacity }} | {{ p.color }}</span>
+                  </div>
+                  <div class="p-actions-mini">
+                    <span class="p-price">{{ p.sellingPrice | number }}đ</span>
+                    <button class="btn-remove-p" (click)="removeProduct(idx)" title="Xóa khỏi hóa đơn">✕</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -44,11 +50,15 @@ import { DataService } from '../../services/data.service';
                 type="text" 
                 [(ngModel)]="invoice.buyerName" 
                 name="buyerName" 
+                #buyerName="ngModel"
                 placeholder="Nhập tên khách hàng..." 
                 (input)="onCustomerSearch()"
                 required
                 autocomplete="off"
               >
+              <div class="error-text animate-fade-in" *ngIf="buyerName.invalid && (buyerName.dirty || buyerName.touched)">
+                Vui lòng nhập tên khách hàng
+              </div>
               <div class="autocomplete-dropdown glass-card" *ngIf="showSuggestions && suggestions.length > 0">
                 <div 
                   class="suggestion-item" 
@@ -65,15 +75,21 @@ import { DataService } from '../../services/data.service';
 
             <div class="form-group">
               <label class="required">Số điện thoại</label>
-              <input type="text" [(ngModel)]="invoice.buyerPhone" name="buyerPhone" placeholder="0xxx..." required>
+              <input type="text" [(ngModel)]="invoice.buyerPhone" name="buyerPhone" #buyerPhone="ngModel" placeholder="0xxx..." required>
+              <div class="error-text animate-fade-in" *ngIf="buyerPhone.invalid && (buyerPhone.dirty || buyerPhone.touched)">
+                Vui lòng nhập số điện thoại
+              </div>
             </div>
 
             <div class="form-group">
               <label class="required">Địa chỉ</label>
-              <input type="text" [(ngModel)]="invoice.buyerAddress" name="buyerAddress" placeholder="Địa chỉ giao hàng/liên hệ..." required>
+              <input type="text" [(ngModel)]="invoice.buyerAddress" name="buyerAddress" #buyerAddress="ngModel" placeholder="Địa chỉ giao hàng/liên hệ..." required>
+              <div class="error-text animate-fade-in" *ngIf="buyerAddress.invalid && (buyerAddress.dirty || buyerAddress.touched)">
+                Vui lòng nhập địa chỉ khách hàng
+              </div>
             </div>
 
-            <div class="payment-section">
+            <div class="payment-section" *ngIf="products.length > 0">
               <label class="checkbox-container">
                 <input type="checkbox" [(ngModel)]="payFull" name="payFull" (change)="onPayFullChange()">
                 <span class="checkmark"></span>
@@ -87,8 +103,12 @@ import { DataService } from '../../services/data.service';
                   [ngModel]="formatPrice(invoice.amountPaid)" 
                   (ngModelChange)="onAmountPaidChange($event)"
                   name="amountPaid" 
+                  #amountPaid="ngModel"
                   required
                 >
+                <div class="error-text animate-fade-in" *ngIf="amountPaid.invalid && (amountPaid.dirty || amountPaid.touched)">
+                  Vui lòng nhập số tiền thanh toán
+                </div>
                 <span class="price-words" *ngIf="invoice.amountPaid > 0">
                   {{ getPriceWords(invoice.amountPaid) }}
                 </span>
@@ -100,13 +120,38 @@ import { DataService } from '../../services/data.service';
                 </p>
               </div>
             </div>
+
+            <!-- External Debt Adjustment -->
+            <div class="payment-section external-debt-info" *ngIf="products.length === 0">
+              <div class="form-group animate-fade-in">
+                <label class="required">Số tiền nợ còn lại (đ)</label>
+                <input 
+                  type="text" 
+                  [ngModel]="formatPrice(invoice.debt)" 
+                  (ngModelChange)="onDebtChange($event)"
+                  name="debt" 
+                  #debtField="ngModel"
+                  required
+                >
+                <div class="error-text animate-fade-in" *ngIf="debtField.invalid && (debtField.dirty || debtField.touched)">
+                  Vui lòng nhập số tiền nợ
+                </div>
+                <span class="price-words" *ngIf="invoice.debt > 0">
+                  {{ getPriceWords(invoice.debt) }}
+                </span>
+                <div class="info-msg">
+                  💡 Đối với nợ cũ/nợ ngoài, bạn hãy điều chỉnh trực tiếp số tiền nợ.
+                </div>
+              </div>
+            </div>
           </form>
         </div>
 
         <footer class="modal-footer">
-          <button class="btn btn-outline" (click)="onClose()">Hủy bỏ</button>
-          <button class="btn btn-primary" (click)="onSubmit()" [disabled]="!invoiceForm.valid">
-            Tiếp tục (Xác nhận)
+          <button class="btn btn-outline" (click)="onClose()" [disabled]="isSaving">Hủy bỏ</button>
+          <button class="btn btn-primary" (click)="onSubmit(invoiceForm)" [disabled]="isSaving">
+            <span class="spinner" *ngIf="isSaving"></span>
+            {{ isSaving ? 'Đang xử lý...' : 'Tiếp tục (Xác nhận)' }}
           </button>
         </footer>
       </div>
@@ -115,13 +160,16 @@ import { DataService } from '../../services/data.service';
   styles: [`
     .modal-overlay {
       position: fixed;
-      inset: 0;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
       background: rgba(0, 0, 0, 0.4);
       backdrop-filter: blur(8px);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 2000;
+      z-index: 10000;
       padding: 1rem;
     }
     
@@ -236,9 +284,43 @@ import { DataService } from '../../services/data.service';
       color: var(--text-main);
     }
 
+    .product-item-mini .p-specs {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      display: block;
+      margin-top: -1px;
+    }
+
     .product-item-mini .p-price {
       font-weight: 700;
       color: var(--primary);
+    }
+
+    .p-actions-mini {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .btn-remove-p {
+      background: #fee2e2;
+      color: #ef4444;
+      border: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      font-size: 0.65rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-remove-p:hover {
+      background: #ef4444;
+      color: white;
+      transform: scale(1.1);
     }
 
     .total-summary-mini {
@@ -349,6 +431,43 @@ import { DataService } from '../../services/data.service';
       margin-top: -0.25rem;
     }
     
+    .error-text {
+      color: #dc2626;
+      font-size: 0.7rem;
+      margin-top: 0.2rem;
+      display: block;
+      font-weight: 600;
+    }
+
+    .spinner {
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+      margin-right: 0.5rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .info-msg {
+      font-size: 0.75rem;
+      color: #0369a1;
+      background: #f0f9ff;
+      padding: 0.5rem;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+    }
+
+    input.ng-invalid.ng-touched {
+      border-color: #ef4444 !important;
+      background: #fffcfc;
+    }
+
     .modal-footer {
       padding: 1.25rem 1.5rem;
       border-top: 1px solid var(--border);
@@ -382,31 +501,40 @@ import { DataService } from '../../services/data.service';
 })
 export class InvoiceFormModalComponent implements OnInit {
   @Input() products: Product[] = [];
+  @Input() editInvoice?: Invoice;
   @Output() close = new EventEmitter<void>();
   @Output() confirm = new EventEmitter<Invoice>();
 
+  isSaving = false;
   invoice!: Invoice;
   payFull = true;
   suggestions: any[] = [];
   showSuggestions = false;
 
-  constructor(private dataService: DataService) {}
+  constructor(private dataService: DataService, private el: ElementRef, private renderer: Renderer2) { }
 
   ngOnInit() {
-    const totalAmount = this.products.reduce((sum, p) => sum + p.sellingPrice, 0);
+    this.renderer.appendChild(document.body, this.el.nativeElement);
     
-    this.invoice = {
-      id: '',
-      buyerName: '',
-      buyerAddress: '',
-      buyerPhone: '',
-      products: this.products,
-      totalAmount: totalAmount,
-      amountPaid: totalAmount,
-      debt: 0,
-      isFullyPaid: true,
-      createdAt: new Date()
-    };
+    if (this.editInvoice) {
+      this.invoice = JSON.parse(JSON.stringify(this.editInvoice));
+      this.products = [...(this.invoice.products || [])];
+      this.payFull = this.invoice.isFullyPaid;
+    } else {
+      const totalAmount = this.products.reduce((sum, p) => sum + p.sellingPrice, 0);
+      this.invoice = {
+        id: '',
+        buyerName: '',
+        buyerAddress: '',
+        buyerPhone: '',
+        products: this.products,
+        totalAmount: totalAmount,
+        amountPaid: totalAmount,
+        debt: 0,
+        isFullyPaid: true,
+        createdAt: new Date()
+      };
+    }
   }
 
   get totalAmount(): number {
@@ -442,6 +570,17 @@ export class InvoiceFormModalComponent implements OnInit {
     }
   }
 
+  onDebtChange(val: string) {
+    const num = this.parsePrice(val);
+    this.invoice.debt = num;
+    this.invoice.isFullyPaid = num === 0;
+    
+    // For external debt, totalAmount is just the debt (if amountPaid is 0)
+    if (this.products.length === 0) {
+      this.invoice.totalAmount = num + (this.invoice.amountPaid || 0);
+    }
+  }
+
   calculateDebt() {
     this.invoice.debt = Math.max(0, this.totalAmount - (this.invoice.amountPaid || 0));
     this.invoice.isFullyPaid = this.invoice.debt === 0;
@@ -453,12 +592,27 @@ export class InvoiceFormModalComponent implements OnInit {
       return;
     }
     this.dataService.getExistingCustomers().subscribe(all => {
-      this.suggestions = all.filter(c => 
+      this.suggestions = all.filter(c =>
         c.name.toLowerCase().includes(this.invoice.buyerName.toLowerCase()) ||
         c.phone.includes(this.invoice.buyerName)
       );
       this.showSuggestions = this.suggestions.length > 0;
     });
+  }
+
+  removeProduct(index: number) {
+    if (this.products.length <= 1) {
+      this.onClose();
+      return;
+    }
+    this.products.splice(index, 1);
+    const newTotal = this.products.reduce((sum, p) => sum + p.sellingPrice, 0);
+    this.invoice.totalAmount = newTotal;
+
+    if (this.payFull) {
+      this.invoice.amountPaid = newTotal;
+    }
+    this.calculateDebt();
   }
 
   selectCustomer(customer: any) {
@@ -472,8 +626,19 @@ export class InvoiceFormModalComponent implements OnInit {
     this.close.emit();
   }
 
-  onSubmit() {
+  onSubmit(form: any) {
+    if (form.invalid) {
+      Object.keys(form.controls).forEach(key => {
+        form.controls[key].markAsTouched();
+      });
+      return;
+    }
+    this.isSaving = true;
     this.calculateDebt();
     this.confirm.emit(this.invoice);
+  }
+
+  ngOnDestroy() {
+    this.renderer.removeChild(document.body, this.el.nativeElement);
   }
 }

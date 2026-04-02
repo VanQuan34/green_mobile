@@ -93,7 +93,22 @@ function gm_upsert_user($name, $phone, $address) {
     global $wpdb;
     $table = $wpdb->prefix . 'gm_users';
     
-    $existing_id = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table WHERE phone = %s", $phone));
+    $phone = trim($phone);
+    
+    // Chỉ tìm kiếm khách hàng cũ nếu có số điện thoại thực sự
+    if (!empty($phone)) {
+        $existing_id = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table WHERE phone = %s", $phone));
+        if ($existing_id) {
+            $wpdb->update($table, array(
+                'name'    => sanitize_text_field($name),
+                'address' => sanitize_textarea_field($address)
+            ), array('id' => $existing_id));
+            return $existing_id;
+        }
+    } else {
+        // Dùng uniqid để đảm bảo không bao giờ trùng lặp UNIQUE KEY phone
+        $phone = 'GUEST-' . uniqid();
+    }
     
     $data = array(
         'name'    => sanitize_text_field($name),
@@ -101,13 +116,8 @@ function gm_upsert_user($name, $phone, $address) {
         'address' => sanitize_textarea_field($address)
     );
     
-    if ($existing_id) {
-        $wpdb->update($table, $data, array('id' => $existing_id));
-        return $existing_id;
-    } else {
-        $wpdb->insert($table, $data);
-        return $wpdb->insert_id;
-    }
+    $wpdb->insert($table, $data);
+    return $wpdb->insert_id;
 }
 
 
@@ -161,6 +171,11 @@ function gm_register_rest_routes() {
     ));
 
     register_rest_route($namespace, '/invoices/(?P<id>[a-zA-Z0-9_-]+)', array(
+        array(
+            'methods'  => 'PUT',
+            'callback' => 'gm_handle_update_invoice',
+            'permission_callback' => '__return_true'
+        ),
         array(
             'methods'  => 'DELETE',
             'callback' => 'gm_handle_delete_invoice',
@@ -272,7 +287,17 @@ function gm_handle_get_invoices() {
     // 2. Fetch all items for these invoices in one go to be efficient
     $invoice_ids = array_map(function($row) { return $row->id; }, $results);
     $placeholders = implode(',', array_fill(0, count($invoice_ids), '%s'));
-    $items_sql = $wpdb->prepare("SELECT * FROM $table_items WHERE invoice_id IN ($placeholders)", $invoice_ids);
+    
+    $table_prod = $wpdb->prefix . 'gm_products';
+    
+    // JOIN with products table to get full info (imei, image, capacity, color, status, original_price)
+    $items_sql = $wpdb->prepare("
+        SELECT it.*, p.imei, p.image, p.capacity, p.color, p.status, p.original_price
+        FROM $table_items it
+        LEFT JOIN $table_prod p ON it.product_id = p.id
+        WHERE it.invoice_id IN ($placeholders)
+    ", $invoice_ids);
+    
     $all_items = $wpdb->get_results($items_sql);
 
     // Group items by invoice_id
@@ -281,7 +306,13 @@ function gm_handle_get_invoices() {
         $items_by_invoice[$item->invoice_id][] = array(
             'id' => (string)$item->product_id,
             'name' => $item->product_name,
-            'sellingPrice' => (int)$item->price
+            'sellingPrice' => (int)$item->price,
+            'imei' => $item->imei ?? '',
+            'image' => $item->image ?? '',
+            'capacity' => $item->capacity ?? '',
+            'color' => $item->color ?? '',
+            'status' => $item->status ?? '',
+            'originalPrice' => (int)($item->original_price ?? 0)
         );
     }
 
@@ -336,8 +367,8 @@ function gm_handle_create_invoice($request) {
     $table_prod = $wpdb->prefix . 'gm_products';
     $table_items = $wpdb->prefix . 'gm_invoice_items';
 
-    // 1. Xử lý ID hóa đơn
-    $invoice_id = (!empty($params['id'])) ? $params['id'] : 'INV-' . time() . '-' . rand(100, 999);
+    // Dùng uniqid nếu không có ID từ frontend
+    $invoice_id = (!empty($params['id'])) ? $params['id'] : 'INV-' . uniqid();
 
     // 2. Lưu/Cập nhật khách hàng vào bảng gm_users trước để lấy ID
     $buyer_id = gm_upsert_user(
@@ -409,6 +440,45 @@ function gm_handle_delete_invoice($request) {
     $wpdb->delete($table_inv, array('id' => $id));
     
     return new WP_REST_Response(array('message' => 'Deleted'), 200);
+}
+
+function gm_handle_update_invoice($request) {
+    global $wpdb;
+    $id = $request['id'];
+    $params = $request->get_json_params();
+    $table_inv = $wpdb->prefix . 'gm_invoices';
+    $table_items = $wpdb->prefix . 'gm_invoice_items';
+
+    // 1. Cập nhật khách hàng
+    $buyer_id = gm_upsert_user(
+        $params['buyerName'] ?? '', 
+        $params['buyerPhone'] ?? '', 
+        $params['buyerAddress'] ?? ''
+    );
+
+    // 2. Cập nhật hóa đơn
+    $data = array(
+        'buyer_id'       => $buyer_id,
+        'amount_paid'    => (int)($params['amountPaid'] ?? 0),
+        'debt'           => (int)($params['debt'] ?? 0),
+        'is_fully_paid'  => (int)($params['isFullyPaid'] ?? 0)
+    );
+
+    $wpdb->update($table_inv, $data, array('id' => $id));
+
+    // 3. Cập nhật items (xóa cũ thêm mới cho đơn giản)
+    $wpdb->delete($table_items, array('invoice_id' => $id));
+    $products = $params['products'] ?? array();
+    foreach ($products as $p) {
+        $wpdb->insert($table_items, array(
+            'invoice_id'   => $id,
+            'product_id'   => (int)($p['id'] ?? 0),
+            'product_name' => sanitize_text_field($p['name'] ?? ''),
+            'price'        => (int)($p['sellingPrice'] ?? 0)
+        ));
+    }
+
+    return new WP_REST_Response(array('message' => 'Updated', 'id' => $id), 200);
 }
 
 function gm_handle_get_customers() {

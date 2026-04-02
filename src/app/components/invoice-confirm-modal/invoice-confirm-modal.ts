@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit, OnDestroy, ElementRef, Renderer2 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Invoice } from '../../models/data.models';
 
@@ -7,7 +7,7 @@ import { Invoice } from '../../models/data.models';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="modal-overlay animate-fade-in">
+    <div class="modal-overlay animate-fade-in" (click)="onBack()">
       <div class="modal-content glass-card" (click)="$event.stopPropagation()">
         <header class="modal-header">
           <h3>Xác nhận lập hóa đơn</h3>
@@ -70,13 +70,16 @@ import { Invoice } from '../../models/data.models';
   styles: [`
     .modal-overlay {
       position: fixed;
-      inset: 0;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
       background: rgba(0, 0, 0, 0.4);
       backdrop-filter: blur(8px);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 2000;
+      z-index: 10000;
       padding: 1rem;
     }
     
@@ -231,10 +234,20 @@ import { Invoice } from '../../models/data.models';
     }
   `]
 })
-export class InvoiceConfirmModalComponent {
+export class InvoiceConfirmModalComponent implements OnInit, OnDestroy {
   @Input() invoice!: Invoice;
   @Output() back = new EventEmitter<void>();
   @Output() confirm = new EventEmitter<void>();
+
+  constructor(private el: ElementRef, private renderer: Renderer2) {}
+
+  ngOnInit() {
+    this.renderer.appendChild(document.body, this.el.nativeElement);
+  }
+
+  ngOnDestroy() {
+    this.renderer.removeChild(document.body, this.el.nativeElement);
+  }
 
   onBack() {
     this.back.emit();

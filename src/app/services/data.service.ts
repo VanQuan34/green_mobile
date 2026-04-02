@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, map, of } from 'rxjs';
+import { BehaviorSubject, Observable, map, of, tap, catchError, throwError } from 'rxjs';
 import { Product, Invoice } from '../models/data.models';
 import { HttpClient } from '@angular/common/http';
+import { ToastService } from './toast.service';
 
 @Injectable({
   providedIn: 'root'
@@ -10,11 +11,12 @@ export class DataService {
   private apiUrl = process.env['NG_APP_API_URL'] || 'https://quantv.store/wp-json/gm/v1';
   private storageType = process.env['NG_APP_STORAGE_TYPE'] || 'api';
   private http = inject(HttpClient);
-  
+  private toast = inject(ToastService);
+
   private productsSubject = new BehaviorSubject<Product[]>([]);
   private invoicesSubject = new BehaviorSubject<Invoice[]>([]);
   private customersSubject = new BehaviorSubject<any[]>([]);
-  
+
   customers$ = this.customersSubject.asObservable();
 
   products$ = this.productsSubject.asObservable().pipe(
@@ -27,7 +29,7 @@ export class DataService {
   }
 
   private get isLocal(): boolean {
-    return this.storageType === 'local';
+    return this.storageType === 'api';
   }
 
   loadInitialData() {
@@ -40,30 +42,26 @@ export class DataService {
 
   private loadApiData() {
     // Tải sản phẩm từ API
-    this.http.get<Product[]>(`${this.apiUrl}/products`).subscribe(products => {
+    this.http.get<Product[]>(`${this.apiUrl}/products`).subscribe((products: Product[]) => {
       this.productsSubject.next(products);
     });
 
     // Tải hóa đơn từ API
-    this.http.get<Invoice[]>(`${this.apiUrl}/invoices`).subscribe(invoices => {
+    this.http.get<Invoice[]>(`${this.apiUrl}/invoices`).subscribe((invoices: Invoice[]) => {
       this.invoicesSubject.next(invoices);
     });
 
     // Tải khách hàng từ API và cập nhật Cache mỗi lần vào site
-    this.http.get<any[]>(`${this.apiUrl}/customers`).subscribe(customers => {
+    this.http.get<any[]>(`${this.apiUrl}/customers`).subscribe((customers: any[]) => {
       this.customersSubject.next(customers);
-      localStorage.setItem('gm_customers_cache', JSON.stringify(customers));
     });
   }
 
   private loadLocalData() {
     const products = JSON.parse(localStorage.getItem('gm_products') || '[]');
     const invoices = JSON.parse(localStorage.getItem('gm_invoices') || '[]');
-    const customers = JSON.parse(localStorage.getItem('gm_customers_cache') || '[]');
-    
     this.productsSubject.next(products);
     this.invoicesSubject.next(invoices);
-    this.customersSubject.next(customers);
 
     // If local and empty, maybe initialize with some dummy data?
     if (products.length === 0) {
@@ -73,27 +71,27 @@ export class DataService {
 
   private initializeMockData() {
     const mockProducts: Product[] = [
-      { 
-        id: '1', 
-        name: 'iPhone 15 Pro Max', 
-        sellingPrice: 29000000, 
+      {
+        id: '1',
+        name: 'iPhone 15 Pro Max',
+        sellingPrice: 29000000,
         originalPrice: 32000000,
-        image: '', 
-        imei: '123456789', 
-        capacity: '256GB', 
-        color: 'Titanium', 
-        status: 'New' 
+        image: '',
+        imei: '123456789',
+        capacity: '256GB',
+        color: 'Titanium',
+        status: 'New'
       },
-      { 
-        id: '2', 
-        name: 'Samsung S24 Ultra', 
-        sellingPrice: 25000000, 
+      {
+        id: '2',
+        name: 'Samsung S24 Ultra',
+        sellingPrice: 25000000,
         originalPrice: 28000000,
-        image: '', 
-        imei: '987654321', 
-        capacity: '512GB', 
-        color: 'Black', 
-        status: 'New' 
+        image: '',
+        imei: '987654321',
+        capacity: '512GB',
+        color: 'Black',
+        status: 'New'
       }
     ];
     localStorage.setItem('gm_products', JSON.stringify(mockProducts));
@@ -105,39 +103,67 @@ export class DataService {
     return this.productsSubject.value;
   }
 
-  addProduct(product: Product) {
+  addProduct(product: Product): Observable<any> {
     if (this.isLocal) {
       const current = this.productsSubject.value;
-      const updated = [...current, { ...product, id: Date.now().toString() }];
+      const newProduct = { ...product, id: Date.now().toString() };
+      const updated = [...current, newProduct];
       this.saveLocal('gm_products', updated, this.productsSubject);
+      this.toast.success('Đã thêm sản phẩm mới');
+      return of(newProduct);
     } else {
-      this.http.post(`${this.apiUrl}/products`, product).subscribe(() => {
-        this.loadInitialData();
-      });
+      return this.http.post(`${this.apiUrl}/products`, product).pipe(
+        tap(() => {
+          this.loadInitialData();
+          this.toast.success('Đã thêm sản phẩm thành công');
+        }),
+        catchError(err => {
+          this.toast.error('Lỗi khi thêm sản phẩm');
+          return throwError(() => err);
+        })
+      );
     }
   }
 
-  updateProduct(product: Product) {
+  updateProduct(product: Product): Observable<any> {
     if (this.isLocal) {
       const current = this.productsSubject.value;
       const updated = current.map(p => p.id === product.id ? product : p);
       this.saveLocal('gm_products', updated, this.productsSubject);
+      this.toast.success('Đã cập nhật sản phẩm');
+      return of(product);
     } else {
-      this.http.put(`${this.apiUrl}/products/${product.id}`, product).subscribe(() => {
-        this.loadInitialData();
-      });
+      return this.http.put(`${this.apiUrl}/products/${product.id}`, product).pipe(
+        tap(() => {
+          this.loadInitialData();
+          this.toast.success('Cập nhật sản phẩm thành công');
+        }),
+        catchError(err => {
+          this.toast.error('Lỗi khi cập nhật sản phẩm');
+          return throwError(() => err);
+        })
+      );
     }
   }
 
-  deleteProduct(id: string) {
+  deleteProduct(id: string): Observable<any> {
     if (this.isLocal) {
       const current = this.productsSubject.value;
       const updated = current.filter(p => p.id !== id);
       this.saveLocal('gm_products', updated, this.productsSubject);
+      this.toast.success('Đã xóa sản phẩm');
+      return of(null);
     } else {
-      this.http.delete(`${this.apiUrl}/products/${id}`).subscribe(() => {
-        this.loadInitialData();
-      });
+      return this.http.delete(`${this.apiUrl}/products/${id}`).pipe(
+        tap(() => {
+          this.loadInitialData();
+          this.toast.success('Đã xóa sản phẩm');
+        }),
+        catchError(err => {
+          this.toast.error('Lỗi khi xóa sản phẩm');
+          return throwError(() => err);
+        })
+      );
     }
   }
 
@@ -146,19 +172,29 @@ export class DataService {
     return this.invoicesSubject.value;
   }
 
-  addInvoice(invoice: Invoice) {
+  addInvoice(invoice: Invoice): Observable<any> {
     if (this.isLocal) {
       const current = this.invoicesSubject.value;
       const newInvoice = { ...invoice, id: Date.now().toString() };
       const updated = [...current, newInvoice];
       this.saveLocal('gm_invoices', updated, this.invoicesSubject);
-      this.updateCustomerCache(newInvoice);
+      this.updateCustomerCache(invoice);
       this.markProductsAsSold(invoice.products || []);
+      this.toast.success('Lập hóa đơn thành công!');
+      return of(newInvoice);
     } else {
-      this.http.post(`${this.apiUrl}/invoices`, invoice).subscribe(() => {
-        this.loadInitialData();
-        this.updateCustomerCache(invoice);
-      });
+      return this.http.post(`${this.apiUrl}/invoices`, invoice).pipe(
+        tap(() => this.toast.success('Lập hóa đơn thành công!')),
+        catchError(err => {
+          this.toast.error('Lỗi khi lập hóa đơn');
+          return throwError(() => err);
+        }),
+        map(res => {
+          this.loadInitialData();
+          this.updateCustomerCache(invoice);
+          return res;
+        })
+      );
     }
   }
 
@@ -166,43 +202,76 @@ export class DataService {
     if (!this.isLocal) return;
     const currentProducts = this.productsSubject.value;
     const soldIds = products.map(p => p.id);
-    const updated = currentProducts.map(p => 
+    const updated = currentProducts.map(p =>
       soldIds.includes(p.id) ? { ...p, sale: true } : p
     );
     this.saveLocal('gm_products', updated, this.productsSubject);
   }
 
-  deleteInvoice(id: string) {
+  deleteInvoice(id: string): Observable<any> {
     if (this.isLocal) {
       const current = this.invoicesSubject.value;
       const updated = current.filter(i => i.id !== id);
       this.saveLocal('gm_invoices', updated, this.invoicesSubject);
+      this.toast.success('Đã xóa hóa đơn');
+      return of(null);
     } else {
-      this.http.delete(`${this.apiUrl}/invoices/${id}`).subscribe(() => {
-        this.loadInitialData();
-      });
+      return this.http.delete(`${this.apiUrl}/invoices/${id}`).pipe(
+        tap(() => this.toast.success('Đã xóa hóa đơn')),
+        catchError(err => {
+          this.toast.error('Lỗi khi xóa hóa đơn');
+          return throwError(() => err);
+        }),
+        map(res => {
+          this.loadInitialData();
+          return res;
+        })
+      );
+    }
+  }
+
+  updateInvoice(invoice: Invoice): Observable<any> {
+    if (this.isLocal) {
+      const current = this.invoicesSubject.value;
+      const updated = current.map(i => i.id === invoice.id ? { ...invoice } : i);
+      this.saveLocal('gm_invoices', updated, this.invoicesSubject);
+      this.updateCustomerCache(invoice);
+      this.toast.success('Đã cập nhật hóa đơn');
+      return of(invoice);
+    } else {
+      return this.http.put(`${this.apiUrl}/invoices/${invoice.id}`, invoice).pipe(
+        tap(() => this.toast.success('Đã cập nhật hóa đơn')),
+        catchError(err => {
+          this.toast.error('Lỗi khi cập nhật hóa đơn');
+          return throwError(() => err);
+        }),
+        map(res => {
+          this.loadInitialData();
+          this.updateCustomerCache(invoice);
+          return res;
+        })
+      );
     }
   }
 
   private updateCustomerCache(invoice: Invoice) {
     const current = this.customersSubject.value;
     const exists = current.find(c => c.phone === invoice.buyerPhone);
-    
+
     let updated;
     const newCustomer = {
-        name: invoice.buyerName,
-        phone: invoice.buyerPhone,
-        address: invoice.buyerAddress
+      name: invoice.buyerName,
+      phone: invoice.buyerPhone,
+      address: invoice.buyerAddress
     };
 
     if (exists) {
-        updated = current.map(c => c.phone === invoice.buyerPhone ? newCustomer : c);
+      updated = current.map(c => c.phone === invoice.buyerPhone ? newCustomer : c);
     } else {
-        updated = [...current, newCustomer];
+      updated = [...current, newCustomer];
     }
 
     this.customersSubject.next(updated);
-    localStorage.setItem('gm_customers_cache', JSON.stringify(updated));
   }
 
   private saveLocal(key: string, data: any, subject: BehaviorSubject<any>) {
@@ -212,12 +281,7 @@ export class DataService {
 
   // Get unique customers from sync cache (always refreshed at startup)
   getExistingCustomers(): Observable<any[]> {
-    const cached = localStorage.getItem('gm_customers_cache');
-    if (cached) {
-      return of(JSON.parse(cached));
-    } else {
-      return this.customers$; // Trả về observable hiện tại nếu cache chưa kịp load
-    }
+    return this.customers$;
   }
 
   // Currency Utilities
@@ -236,7 +300,7 @@ export class DataService {
 
   numberToVietnameseWords(n: number): string {
     if (n === 0) return 'Không đồng';
-    
+
     const digits = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
     const units = ['', 'nghìn', 'triệu', 'tỷ', 'nghìn tỷ', 'triệu tỷ'];
 
@@ -285,9 +349,9 @@ export class DataService {
 
     res = res.trim();
     if (res.startsWith('không trăm')) {
-       res = res.replace('không trăm ', '');
+      res = res.replace('không trăm ', '');
     }
-    
+
     return res.charAt(0).toUpperCase() + res.slice(1).trim() + ' đồng';
   }
 }

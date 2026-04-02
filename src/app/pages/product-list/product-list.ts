@@ -116,6 +116,7 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
       <app-product-modal 
         *ngIf="showModal" 
         [product]="selectedProduct" 
+        [loading]="modalLoading"
         (close)="showModal = false" 
         (save)="onSaveProduct($event)"
       ></app-product-modal>
@@ -307,6 +308,7 @@ export class ProductListComponent implements OnInit {
   showModal = false;
   showDetailModal = false;
   selectedProduct: Product = this.getEmptyProduct();
+  modalLoading = false;
   
   // Invoicing state
   selectedProductIds = new Set<string>();
@@ -388,21 +390,31 @@ export class ProductListComponent implements OnInit {
 
   openProductModal() {
     this.selectedProduct = this.getEmptyProduct();
+    this.modalLoading = false;
     this.showModal = true;
   }
 
   editProduct(product: Product) {
     this.selectedProduct = { ...product };
+    this.modalLoading = false;
     this.showModal = true;
   }
 
   onSaveProduct(product: Product) {
-    if (product.id) {
-      this.dataService.updateProduct(product);
-    } else {
-      this.dataService.addProduct(product);
-    }
-    this.showModal = false;
+    this.modalLoading = true;
+    const operation = product.id
+      ? this.dataService.updateProduct(product)
+      : this.dataService.addProduct(product);
+
+    operation.subscribe({
+      next: () => {
+        this.modalLoading = false;
+        this.showModal = false;
+      },
+      error: () => {
+        this.modalLoading = false;
+      }
+    });
   }
 
   deleteProduct(id: string) {
@@ -435,9 +447,16 @@ export class ProductListComponent implements OnInit {
   }
 
   onFinalSubmit() {
-    this.dataService.addInvoice(this.tempInvoice);
-    this.showConfirmModal = false;
-    this.selectedProductIds.clear();
-    alert('Lập hóa đơn thành công!');
+    this.dataService.addInvoice(this.tempInvoice).subscribe({
+      next: () => {
+        this.showConfirmModal = false;
+        this.selectedProductIds.clear();
+        alert('Lập hóa đơn thành công!');
+      },
+      error: (err) => {
+        console.error('Lỗi khi lưu hóa đơn:', err);
+        alert('Có lỗi xảy ra khi lưu hóa đơn. Vui lòng thử lại.');
+      }
+    });
   }
 }

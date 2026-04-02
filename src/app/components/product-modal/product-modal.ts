@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit, OnDestroy, ElementRef, Renderer2 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Product } from '../../models/data.models';
@@ -9,7 +9,7 @@ import { DataService } from '../../services/data.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="modal-overlay animate-fade-in">
+    <div class="modal-overlay animate-fade-in" (click)="onClose()">
       <div class="modal-content glass-card" (click)="$event.stopPropagation()">
         <header class="modal-header">
           <h3>{{ product.id ? 'Cập nhật' : 'Thêm' }} sản phẩm</h3>
@@ -94,9 +94,10 @@ import { DataService } from '../../services/data.service';
         </div>
 
         <footer class="modal-footer">
-          <button class="btn btn-outline" (click)="onClose()">Hủy bỏ</button>
-          <button class="btn btn-primary" (click)="onSave()" [disabled]="!productForm.valid">
-            {{ product.id ? 'Cập nhật' : 'Thêm mới' }}
+          <button class="btn btn-outline" (click)="onClose()" [disabled]="loading">Hủy bỏ</button>
+          <button class="btn btn-primary" (click)="onSave()" [disabled]="!productForm.valid || loading">
+            <span class="spinner" *ngIf="loading"></span>
+            {{ loading ? (product.id ? 'Đang cập nhật...' : 'Đang thêm...') : (product.id ? 'Cập nhật' : 'Thêm mới') }}
           </button>
         </footer>
       </div>
@@ -105,13 +106,16 @@ import { DataService } from '../../services/data.service';
   styles: [`
     .modal-overlay {
       position: fixed;
-      inset: 0;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
       background: rgba(0, 0, 0, 0.4);
       backdrop-filter: blur(8px);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 2000;
+      z-index: 10000;
       padding: 1rem;
     }
     
@@ -236,6 +240,21 @@ import { DataService } from '../../services/data.service';
       font-weight: 600;
       margin-top: 0.1rem;
     }
+
+    .spinner {
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+      margin-right: 0.5rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
     
     .modal-footer {
       padding: 1.25rem 1.5rem;
@@ -271,14 +290,23 @@ import { DataService } from '../../services/data.service';
     }
   `]
 })
-export class ProductModalComponent {
+export class ProductModalComponent implements OnInit, OnDestroy {
   @Input() product: Product = this.getEmptyProduct();
+  @Input() loading = false;
   @Output() close = new EventEmitter<void>();
   @Output() save = new EventEmitter<Product>();
 
   capacities = ['16GB', '32GB', '64GB', '128GB', '256GB', '512GB', '1TB', '2TB'];
 
-  constructor(private dataService: DataService) {}
+  constructor(private dataService: DataService, private el: ElementRef, private renderer: Renderer2) {}
+
+  ngOnInit() {
+    this.renderer.appendChild(document.body, this.el.nativeElement);
+  }
+
+  ngOnDestroy() {
+    this.renderer.removeChild(document.body, this.el.nativeElement);
+  }
 
   formatPrice(val: number): string {
     return this.dataService.formatVND(val);

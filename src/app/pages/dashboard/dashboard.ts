@@ -51,6 +51,24 @@ Chart.register(...registerables);
         </div>
       </div>
 
+      <!-- Special KPI Row -->
+      <div class="kpi-row-special">
+        <div class="kpi-card glass-card cyan">
+          <div class="kpi-icon cyan">📊</div>
+          <div class="kpi-content">
+            <label>Tổng vốn (Giá gốc)</label>
+            <div class="value">{{ stats.totalInventoryValue | number }}đ</div>
+          </div>
+        </div>
+        <div class="kpi-card glass-card indigo">
+          <div class="kpi-icon indigo">🎯</div>
+          <div class="kpi-content">
+            <label>Doanh thu dự kiến (Nếu bán hết)</label>
+            <div class="value">{{ stats.expectedTotalRevenue | number }}đ</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Charts Section -->
       <div class="charts-grid">
         <div class="chart-container glass-card">
@@ -114,6 +132,22 @@ Chart.register(...registerables);
     .kpi-icon.orange { background: rgba(249, 115, 22, 0.1); color: #f97316; }
     .kpi-icon.yellow { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
     .kpi-icon.purple { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+    .kpi-icon.cyan { background: rgba(6, 182, 212, 0.1); color: #0891b2; }
+    .kpi-card.cyan { border-bottom: 3px solid #0891b2; }
+    
+    .kpi-icon.indigo { background: rgba(79, 70, 229, 0.1); color: #4f46e5; }
+    .kpi-card.indigo { border-bottom: 3px solid #4f46e5; }
+
+    .kpi-row-special {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: flex-start;
+    }
+
+    .kpi-row-special .kpi-card {
+      flex: 1;
+      max-width: calc(50% - 0.75rem);
+    }
 
     .kpi-content label {
       display: block;
@@ -180,6 +214,9 @@ Chart.register(...registerables);
       .chart-container {
         height: 300px;
       }
+      .kpi-row-special .kpi-card {
+        width: 100%;
+      }
     }
   `]
 })
@@ -193,7 +230,9 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     totalProfit: 0,
     totalDebt: 0,
     soldCount: 0,
-    inventoryCount: 0
+    inventoryCount: 0,
+    totalInventoryValue: 0,
+    expectedTotalRevenue: 0
   };
 
   private salesChart?: Chart;
@@ -214,23 +253,49 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   private calculateStats() {
-    const invoices = this.dataService.getInvoices();
+    const rawInvoices = this.dataService.getInvoices();
     const products = this.dataService.getProducts();
 
-    this.stats.totalRevenue = invoices.reduce((sum, i) => sum + (i.totalAmount || i.productPrice || 0), 0);
-    this.stats.totalPaid = invoices.reduce((sum, i) => sum + i.amountPaid, 0);
-    this.stats.totalDebt = invoices.reduce((sum, i) => sum + i.debt, 0);
-    
-    // Đếm tổng số máy đã bán từ tất cả hóa đơn
-    this.stats.soldCount = invoices.reduce((sum, inv) => sum + (inv.products?.length || 1), 0);
-    this.stats.inventoryCount = products.filter(p => !p.sale).length;
+    // Tách hóa đơn thực tế và nợ nhập ngoài
+    const actualInvoices = rawInvoices.filter(i => !i.id.startsWith('MANUAL-'));
+    const manualInvoices = rawInvoices.filter(i => i.id.startsWith('MANUAL-'));
 
-    // Tính lợi nhuận: Tổng (Tổng giá bán - Tổng giá nhập của các máy trong hóa đơn)
-    this.stats.totalProfit = invoices.reduce((sum, inv) => {
+    // Doanh thu và Thực thu chỉ tính hóa đơn thực tế
+    this.stats.totalRevenue = actualInvoices.reduce((sum, i) => sum + (i.totalAmount || i.productPrice || 0), 0);
+    this.stats.totalPaid = actualInvoices.reduce((sum, i) => sum + i.amountPaid, 0);
+    
+    // Tổng công nợ bao gồm cả hóa đơn thực tế và nợ nhập ngoài
+    this.stats.totalDebt = rawInvoices.reduce((sum, i) => sum + i.debt, 0);
+    
+    // Đếm tổng số máy đã bán (Chỉ máy thực tế)
+    this.stats.soldCount = actualInvoices.reduce((sum, inv) => sum + (inv.products?.length || 1), 0);
+    const unsoldProducts = products.filter(p => !p.sale);
+    this.stats.inventoryCount = unsoldProducts.length;
+    
+    // Tổng vốn = Tổng giá gốc của các sản phẩm chưa bán + Tổng giá gốc của các sản phẩm TRONG HÓA ĐƠN THỰC TẾ
+    const unsoldCapital = unsoldProducts.reduce((sum, p) => sum + (p.originalPrice || 0), 0);
+    const soldCapital = actualInvoices.reduce((sum, inv) => {
+      if (inv.products && inv.products.length > 0) {
+        return sum + inv.products.reduce((s, p) => s + (p.originalPrice || 0), 0);
+      } else {
+        // Fallback cho hóa đơn cũ
+        const product = products.find(p => p.id === inv.productId);
+        return sum + (product ? (product.originalPrice || 0) : 0);
+      }
+    }, 0);
+    
+    this.stats.totalInventoryValue = unsoldCapital + soldCapital;
+    
+    // Doanh thu dự kiến = Doanh thu thực tế (đã bán) + Tổng giá bán sản phẩm trong kho (chưa bán)
+    const currentUnsoldRevenue = unsoldProducts.reduce((sum, p) => sum + (p.sellingPrice || 0), 0);
+    this.stats.expectedTotalRevenue = this.stats.totalRevenue + currentUnsoldRevenue;
+
+    // Tính lợi nhuận: Chỉ tính trên hóa đơn thực tế
+    this.stats.totalProfit = actualInvoices.reduce((sum, inv) => {
       const revenue = inv.totalAmount || inv.productPrice || 0;
       let cost = 0;
       if (inv.products && inv.products.length > 0) {
-        cost = inv.products.reduce((s, p) => s + p.originalPrice, 0);
+        cost = inv.products.reduce((s, p) => s + (p.originalPrice || 0), 0);
       } else {
         // Fallback cho hóa đơn cũ
         const product = products.find(p => p.id === inv.productId);
@@ -249,10 +314,13 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     }).reverse();
 
     const revenueData = last7Days.map(dateStr => {
-      return this.dataService.getInvoices().reduce((sum, inv) => {
-        const invDate = new Date(inv.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-        return invDate === dateStr ? sum + (inv.totalAmount || inv.productPrice || 0) : sum;
-      }, 0);
+      // Chỉ tính hóa đơn không phải nợ nhập ngoài
+      return this.dataService.getInvoices()
+        .filter(inv => !inv.id.startsWith('MANUAL-'))
+        .reduce((sum, inv) => {
+          const invDate = new Date(inv.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+          return invDate === dateStr ? sum + (inv.totalAmount || inv.productPrice || 0) : sum;
+        }, 0);
     });
 
     this.salesChart = new Chart(ctx, {

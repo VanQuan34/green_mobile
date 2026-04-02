@@ -10,6 +10,9 @@ export interface Product {
   originalPrice: number;
   sellingPrice: number;
   sale?: boolean;
+  purchaseDate?: Date | string;
+  amountPaid?: number;
+  debt?: number;
 }
 
 export interface Invoice {

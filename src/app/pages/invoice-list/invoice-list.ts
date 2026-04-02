@@ -1,14 +1,37 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { Invoice } from '../../models/data.models';
+import { InvoiceDetailModalComponent } from '../../components/invoice-detail-modal/invoice-detail-modal';
+import { InvoiceFormModalComponent } from '../../components/invoice-form-modal/invoice-form-modal';
 
 @Component({
   selector: 'app-invoice-list',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule, InvoiceDetailModalComponent, InvoiceFormModalComponent],
   template: `
     <div class="invoice-page animate-fade-in">
+      <div class="list-header">
+        <div class="search-bar glass-card">
+          <span class="icon">🔍</span>
+          <input 
+            type="text" 
+            [(ngModel)]="searchQuery" 
+            placeholder="Tìm theo tên khách, số điện thoại hoặc sản phẩm..."
+            (input)="onFilterChange()"
+          >
+        </div>
+        <div class="sort-controls glass-card">
+          <label>Sắp xếp theo nợ:</label>
+          <select [(ngModel)]="sortOrder" (change)="onFilterChange()">
+            <option value="desc">Nợ cao → thấp</option>
+            <option value="asc">Nợ thấp → cao</option>
+            <option value="none">Mặc định (Mới nhất)</option>
+          </select>
+        </div>
+      </div>
+
       <div class="table-container glass-card">
         <table>
           <thead>
@@ -22,7 +45,9 @@ import { Invoice } from '../../models/data.models';
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let invoice of invoices" [ngClass]="{'debt-row': !invoice.isFullyPaid, 'paid-row': invoice.isFullyPaid}">
+            <tr *ngFor="let invoice of filteredInvoices" 
+                (click)="viewInvoiceDetail(invoice)"
+                [ngClass]="{'debt-row': !invoice.isFullyPaid, 'paid-row': invoice.isFullyPaid, 'clickable-row': true}">
               <td>
                 <div class="customer-info">
                   <span class="name">{{ invoice.buyerName }}</span>
@@ -38,8 +63,10 @@ import { Invoice } from '../../models/data.models';
                     </div>
                   </ng-container>
                   <ng-template #legacyProduct>
-                    <span class="p-name">{{ invoice.productName }}</span>
-                    <span class="p-price text-muted">{{ invoice.productPrice | number }}đ</span>
+                    <div class="p-item-tag">
+                      <span class="p-name">{{ invoice.productName }}</span>
+                      <span class="p-price text-muted">{{ invoice.productPrice | number }}đ</span>
+                    </div>
                   </ng-template>
                 </div>
               </td>
@@ -51,7 +78,7 @@ import { Invoice } from '../../models/data.models';
               </td>
               <td class="text-muted">{{ invoice.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
               <td class="actions-cell">
-                <div class="btn-group">
+                <div class="btn-group" (click)="$event.stopPropagation()">
                   <button class="btn-icon" title="Cập nhật" (click)="updateInvoice(invoice)">
                     <span>✏️</span>
                   </button>
@@ -72,6 +99,21 @@ import { Invoice } from '../../models/data.models';
           </tbody>
         </table>
       </div>
+
+      <!-- Detail Modal -->
+      <app-invoice-detail-modal 
+        *ngIf="selectedInvoice" 
+        [invoice]="selectedInvoice" 
+        (close)="selectedInvoice = null">
+      </app-invoice-detail-modal>
+
+      <!-- Edit Modal -->
+      <app-invoice-form-modal
+        *ngIf="editingInvoice"
+        [editInvoice]="editingInvoice"
+        (close)="editingInvoice = null"
+        (confirm)="onEditConfirm($event)">
+      </app-invoice-form-modal>
     </div>
   `,
   styles: [`
@@ -79,6 +121,68 @@ import { Invoice } from '../../models/data.models';
       display: flex;
       flex-direction: column;
       gap: 1.5rem;
+    }
+
+    .list-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .search-bar {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      gap: 0.75rem;
+    }
+
+    .search-bar input {
+      border: none;
+      background: none;
+      width: 100%;
+      outline: none;
+      font-size: 0.95rem;
+      color: var(--text-main);
+    }
+
+    .sort-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1.25rem;
+    }
+
+    .sort-controls label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .sort-controls select {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.4rem 0.6rem;
+      font-size: 0.9rem;
+      background: white;
+      outline: none;
+      cursor: pointer;
+    }
+    
+    .table-container {
+      overflow-x: auto;
+    }
+
+    .clickable-row {
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .clickable-row:hover td {
+      background-color: #f1f5f9 !important;
+      transform: translateY(-1px);
     }
     
     .customer-info, .product-info {
@@ -96,6 +200,8 @@ import { Invoice } from '../../models/data.models';
     }
     
     .p-item-tag {
+      display: flex;
+      flex-direction: column;
       margin-bottom: 0.5rem;
       padding-bottom: 0.5rem;
       border-bottom: 1px dashed rgba(0,0,0,0.05);
@@ -181,23 +287,64 @@ import { Invoice } from '../../models/data.models';
 })
 export class InvoiceListComponent implements OnInit {
   invoices: Invoice[] = [];
+  filteredInvoices: Invoice[] = [];
+  searchQuery: string = '';
+  sortOrder: 'asc' | 'desc' | 'none' = 'desc'; // Mặc định nợ cao -> thấp
+  selectedInvoice: Invoice | null = null;
+  editingInvoice: Invoice | null = null;
 
   constructor(private dataService: DataService) {}
 
   ngOnInit() {
     this.dataService.invoices$.subscribe(data => {
       this.invoices = data;
+      this.onFilterChange();
     });
   }
 
+  onFilterChange() {
+    let result = [...this.invoices];
+    
+    // 1. Tìm kiếm
+    if (this.searchQuery) {
+      const q = this.searchQuery.toLowerCase();
+      result = result.filter(inv => 
+        inv.buyerName?.toLowerCase().includes(q) ||
+        inv.buyerPhone?.includes(q) ||
+        inv.productName?.toLowerCase().includes(q) ||
+        inv.products?.some(p => p.name.toLowerCase().includes(q))
+      );
+    }
+    
+    // 2. Sắp xếp theo nợ
+    if (this.sortOrder === 'desc') {
+      result.sort((a, b) => b.debt - a.debt);
+    } else if (this.sortOrder === 'asc') {
+      result.sort((a, b) => a.debt - b.debt);
+    }
+    
+    this.filteredInvoices = result;
+  }
+
+  viewInvoiceDetail(invoice: Invoice) {
+    this.selectedInvoice = invoice;
+  }
+
   updateInvoice(invoice: Invoice) {
-    console.log('Update invoice', invoice);
-    // Not explicitly requested for detail popup, but added toolbar item
+    this.editingInvoice = invoice;
+  }
+
+  onEditConfirm(updated: Invoice) {
+    this.dataService.updateInvoice(updated).subscribe(() => {
+      this.editingInvoice = null;
+    });
   }
 
   deleteInvoice(id: string) {
     if (confirm('Bạn có chắc chắn muốn xóa hóa đơn này?')) {
-      this.dataService.deleteInvoice(id);
+      this.dataService.deleteInvoice(id).subscribe(() => {
+        // DataService reload automagically updates subject
+      });
     }
   }
 }

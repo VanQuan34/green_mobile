@@ -3,11 +3,14 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { Invoice } from '../../models/data.models';
+import { InvoiceDetailModalComponent } from '../../components/invoice-detail-modal/invoice-detail-modal';
+import { ManualDebtModalComponent } from '../../components/manual-debt-modal/manual-debt-modal';
+import { ProductDetailModalComponent } from '../../components/product-detail/product-detail';
 
 @Component({
   selector: 'app-debt-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, InvoiceDetailModalComponent, ManualDebtModalComponent],
   template: `
     <div class="debt-page">
       <div class="filter-bar glass-card animate-fade-in">
@@ -43,6 +46,12 @@ import { Invoice } from '../../models/data.models';
             <option value="asc">Tăng dần (Ít nhất)</option>
           </select>
         </div>
+
+        <div class="action-group">
+          <button class="btn btn-primary btn-add" (click)="showManualDebtModal = true">
+            <span class="icon">➕</span> Quản lý nợ ngoài
+          </button>
+        </div>
       </div>
 
       <div class="stats-cards animate-fade-in">
@@ -71,7 +80,7 @@ import { Invoice } from '../../models/data.models';
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let item of filteredDebts">
+            <tr *ngFor="let item of filteredDebts" (click)="viewInvoice(item)" class="clickable-row">
               <td>
                 <div class="customer-info">
                   <span class="name">{{ item.buyerName }}</span>
@@ -79,13 +88,24 @@ import { Invoice } from '../../models/data.models';
                 </div>
               </td>
               <td>{{ item.buyerPhone }}</td>
-              <td>{{ item.productName }}</td>
-              <td>{{ item.productPrice | number }}đ</td>
+              <td>
+                <div class="product-info">
+                  <div class="p-item-tag" *ngFor="let p of item.products">
+                    <span class="p-name">• {{ p.name }}</span>
+                  </div>
+                </div>
+              </td>
+              <td class="font-bold">{{ item.totalAmount | number }}đ</td>
               <td class="text-green">{{ item.amountPaid | number }}đ</td>
               <td class="text-red font-bold">{{ item.debt | number }}đ</td>
-              <td>{{ item.createdAt | date:'dd/MM/yyyy' }}</td>
               <td>
-                <button class="btn btn-sm btn-outline" (click)="viewInvoice(item)">Chi tiết</button>
+                <div class="date-info">
+                  <span class="date">{{ item.createdAt | date:'dd/MM/yyyy' }}</span>
+                  <span class="badge-new" *ngIf="isRecent(item.createdAt)">Mới</span>
+                </div>
+              </td>
+              <td>
+                <button class="btn btn-sm btn-outline">Chi tiết</button>
               </td>
             </tr>
             <tr *ngIf="filteredDebts.length === 0">
@@ -94,6 +114,20 @@ import { Invoice } from '../../models/data.models';
           </tbody>
         </table>
       </div>
+
+      <!-- Detail Modal -->
+      <app-invoice-detail-modal 
+        *ngIf="selectedInvoice" 
+        [invoice]="selectedInvoice" 
+        (close)="selectedInvoice = null">
+      </app-invoice-detail-modal>
+
+      <!-- Manual Debt Modal -->
+      <app-manual-debt-modal
+        *ngIf="showManualDebtModal"
+        (close)="showManualDebtModal = false"
+        (save)="onManualDebtSaved()">
+      </app-manual-debt-modal>
     </div>
   `,
   styles: [`
@@ -122,6 +156,14 @@ import { Invoice } from '../../models/data.models';
     .quick-filters {
       display: flex;
       gap: 0.5rem;
+    }
+
+    .btn-add {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.25rem;
+      white-space: nowrap;
     }
 
     .date-inputs {
@@ -174,10 +216,47 @@ import { Invoice } from '../../models/data.models';
     .text-red { color: #ef4444; }
     .text-green { color: #10b981; }
 
+    .clickable-row {
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .clickable-row:hover {
+      background: #f1f5f9;
+    }
+
+    .p-item-tag {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+
+    .p-name {
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
     .empty-state {
       padding: 3rem !important;
       text-align: center;
       color: var(--text-muted);
+    }
+
+    .date-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .badge-new {
+      display: inline-block;
+      padding: 0.1rem 0.4rem;
+      background: #fef3c7;
+      color: #d97706;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      width: fit-content;
     }
 
     @media (max-width: 768px) {
@@ -202,6 +281,8 @@ export class DebtListComponent implements OnInit {
   sortOrder: 'asc' | 'desc' = 'desc';
 
   totalDebtAmount = 0;
+  selectedInvoice: Invoice | null = null;
+  showManualDebtModal = false;
 
   constructor(private dataService: DataService) {}
 
@@ -210,6 +291,11 @@ export class DebtListComponent implements OnInit {
       this.allInvoices = list;
       this.applyFilters();
     });
+  }
+
+  onManualDebtSaved() {
+    this.showManualDebtModal = false;
+    // DataService will trigger a refresh via invoices$ subscription
   }
 
   setTimeFilter(filter: '3d' | '7d' | '1m' | 'custom') {
@@ -248,17 +334,72 @@ export class DebtListComponent implements OnInit {
       );
     }
 
-    // Sorting
-    list.sort((a, b) => {
+    // 3. Sắp xếp (Trước khi gộp để lấy ngày mới nhất dễ hơn nếu cần, hoặc gộp xong mới sắp)
+    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    // 4. Gộp theo khách hàng
+    const groups = new Map<string, Invoice>();
+    list.forEach(inv => {
+      const key = inv.buyerPhone || inv.buyerName;
+      const totalAmt = inv.totalAmount || inv.productPrice || 1;
+      
+      // Chuẩn bị danh sách sản phẩm kèm ngày mua và tiền đã trả từng món (pro-rata)
+      const currentInvProducts: any[] = inv.products ? 
+        inv.products.map(p => {
+          const ratio = p.sellingPrice / totalAmt;
+          return { 
+            ...p, 
+            purchaseDate: inv.createdAt,
+            amountPaid: Math.round(inv.amountPaid * ratio),
+            debt: Math.round(inv.debt * ratio)
+          };
+        }) : 
+        (inv.productName ? [{ 
+          name: inv.productName, 
+          purchaseDate: inv.createdAt,
+          amountPaid: inv.amountPaid,
+          debt: inv.debt,
+          sellingPrice: inv.productPrice || 0
+        }] : []);
+
+      if (!groups.has(key)) {
+        groups.set(key, { ...inv, products: currentInvProducts });
+      } else {
+        const group = groups.get(key)!;
+        group.totalAmount += (inv.totalAmount || inv.productPrice || 0);
+        group.amountPaid += inv.amountPaid;
+        group.debt += inv.debt;
+        
+        // Gộp sản phẩm kèm ngày mua
+        group.products = [...(group.products || []), ...currentInvProducts];
+        
+        // Giữ ngày mới nhất cho meta data chung của nhóm
+        if (new Date(inv.createdAt) > new Date(group.createdAt)) {
+          group.createdAt = inv.createdAt;
+        }
+      }
+    });
+
+    let mergedList = Array.from(groups.values());
+
+    // 5. Sắp xếp theo nợ sau khi đã gộp
+    mergedList.sort((a, b) => {
       return this.sortOrder === 'desc' ? b.debt - a.debt : a.debt - b.debt;
     });
 
-    this.filteredDebts = list;
-    this.totalDebtAmount = list.reduce((sum, i) => sum + i.debt, 0);
+    this.filteredDebts = mergedList;
+    this.totalDebtAmount = mergedList.reduce((sum, i) => sum + i.debt, 0);
   }
 
   viewInvoice(invoice: Invoice) {
-    // Logic to view detail if needed
-    alert(`Khách: ${invoice.buyerName}\nCòn nợ: ${invoice.debt.toLocaleString()}đ`);
+    this.selectedInvoice = invoice;
+  }
+
+  isRecent(date: Date | string): boolean {
+    if (!date) return false;
+    const d = new Date(date);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    return diff < 3 * 24 * 60 * 60 * 1000;
   }
 }

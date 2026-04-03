@@ -31,10 +31,10 @@ export class DataService {
   }
 
   private loadApiData() {
-    // Tải sản phẩm từ API
-    this.http.get<Product[]>(`${this.apiUrl}/products`).subscribe((products: Product[]) => {
-      this.productsSubject.next(products);
-    });
+    // Tải sản phẩm từ API (Đã chuyển sang phân trang phía Server, lược bỏ call tại đây để tránh lặp)
+    // this.http.get<Product[]>(`${this.apiUrl}/products`).subscribe((products: Product[]) => {
+    //   this.productsSubject.next(products);
+    // });
 
     // Tải hóa đơn từ API
     this.http.get<Invoice[]>(`${this.apiUrl}/invoices`).subscribe((invoices: Invoice[]) => {
@@ -50,6 +50,28 @@ export class DataService {
   // Product Methods
   getProducts(): Product[] {
     return this.productsSubject.value;
+  }
+
+  getProductsPaginated(page: number, perPage: number, search?: string): Observable<{ products: Product[], total: number }> {
+    let params: any = { page, per_page: perPage };
+    if (search) params.search = search;
+    
+    return this.http.get<Product[]>(`${this.apiUrl}/products`, {
+      params,
+      observe: 'response'
+    }).pipe(
+      map(response => {
+        const total = parseInt(response.headers.get('X-WP-Total') || '0', 10);
+        return {
+          products: response.body || [],
+          total
+        };
+      }),
+      catchError(err => {
+        this.toast.error('Lỗi khi tải danh sách sản phẩm');
+        return throwError(() => err);
+      })
+    );
   }
 
   addProduct(product: Product): Observable<any> {

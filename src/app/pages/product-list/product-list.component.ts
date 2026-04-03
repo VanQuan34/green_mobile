@@ -31,7 +31,7 @@ import { InvoiceConfirmModalComponent } from '../../components/invoice-confirm-m
           >
         </div>
         <button class="btn btn-primary" (click)="openProductModal()">
-          <span class="icon">➕</span>
+          <span class="icon">+</span>
           <span>Thêm sản phẩm</span>
         </button>
       </div>

@@ -1,8 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { Product, Invoice } from '../../models/data.models';
+import { Subject, debounceTime, distinctUntilChanged, Subscription } from 'rxjs';
 
 import { ProductModalComponent } from '../../components/product-modal/product-modal';
 import { InvoiceFormModalComponent } from '../../components/invoice-form-modal/invoice-form-modal';
@@ -30,6 +31,7 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
             [(ngModel)]="searchQuery" 
             placeholder="Tìm kiếm tên, IMEI..." 
             (input)="onSearch()"
+            (keyup.enter)="onEnterSearch()"
           >
         </div>
         <div class="btn-group">
@@ -42,13 +44,17 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
             <span>Lập hóa đơn ({{ selectedProductIds.size }})</span>
           </button>
           <button class="btn btn-primary" (click)="openProductModal()">
-            <span class="icon">➕</span>
+            <span class="icon">+</span>
             <span>Thêm sản phẩm</span>
           </button>
         </div>
       </div>
 
-      <div class="table-container glass-card animate-fade-in">
+      <div class="table-container glass-card animate-fade-in" [class.loading]="loading">
+        <div class="loading-overlay" *ngIf="loading">
+          <div class="spinner"></div>
+          <span>Đang tải dữ liệu...</span>
+        </div>
         <table>
           <thead>
             <tr>
@@ -68,11 +74,11 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let product of filteredProducts; let i = index" (click)="viewDetail(product)" class="clickable-row">
+            <tr *ngFor="let product of paginatedProducts; let i = index" (click)="viewDetail(product)" class="clickable-row">
               <td (click)="$event.stopPropagation()">
                 <input type="checkbox" [checked]="selectedProductIds.has(product.id)" (change)="toggleSelect(product.id)">
               </td>
-              <td>{{ i + 1 }}</td>
+              <td>{{ (currentPage - 1) * pageSize + i + 1 }}</td>
               <td>
                 <div class="product-img">
                   <img [src]="product.image || 'https://placehold.co/40x40?text=Phone'" alt="phone">
@@ -93,7 +99,7 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
                 </div>
               </td>
             </tr>
-            <tr *ngIf="filteredProducts.length === 0">
+            <tr *ngIf="!loading && paginatedProducts.length === 0">
               <td colspan="11" class="empty-state">
                 <div class="empty-msg">
                   <span>📭</span>
@@ -103,6 +109,43 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Pagination Controls -->
+      <div class="pagination-bar animate-fade-in" *ngIf="totalItems > pageSize">
+        <div class="pagination-info">
+          Hiển thị {{ (currentPage - 1) * pageSize + 1 }} - {{ Math.min(currentPage * pageSize, totalItems) }} 
+          trong tổng số {{ totalItems }} sản phẩm
+        </div>
+        <div class="pagination-controls">
+          <button 
+            class="btn-page" 
+            [disabled]="currentPage === 1 || loading" 
+            (click)="goToPage(currentPage - 1)"
+          >
+            ← Trước
+          </button>
+          
+          <div class="page-numbers">
+            <button 
+              *ngFor="let p of pageArray" 
+              class="btn-page-num" 
+              [class.active]="p === currentPage"
+              [disabled]="loading"
+              (click)="goToPage(p)"
+            >
+              {{ p }}
+            </button>
+          </div>
+
+          <button 
+            class="btn-page" 
+            [disabled]="currentPage === totalPages || loading" 
+            (click)="goToPage(currentPage + 1)"
+          >
+            Sau →
+          </button>
+        </div>
       </div>
 
       <app-product-detail-modal
@@ -182,9 +225,53 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
     }
     
     .table-container {
+      position: relative;
       overflow-x: auto;
       padding: 0.5rem;
       background: white;
+      min-height: 200px;
+      max-height: calc(100dvh - 280px);
+    }
+
+    @media (max-width: 768px){
+      .table-container {
+        max-height: calc(100dvh - 360px);
+      }
+    }
+
+    .table-container.loading {
+      opacity: 0.7;
+    }
+
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255,255,255,0.6);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      color: var(--primary);
+      font-weight: 500;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
     
     .product-img img {
@@ -280,6 +367,82 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
       font-size: 3rem;
     }
 
+    /* Pagination Styles */
+    .pagination-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .pagination-info {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .page-numbers {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .btn-page {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--text-main);
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-page:hover:not(:disabled) {
+      background: var(--bg-main);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .btn-page:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-page-num {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    .btn-page-num:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .btn-page-num.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
     @media (max-width: 768px) {
       .action-bar {
         flex-direction: column;
@@ -298,17 +461,30 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
         margin: 0 -0.5rem;
         border-radius: 0;
       }
+
+      .pagination-bar {
+        flex-direction: column;
+        text-align: center;
+      }
     }
   `]
 })
 export class ProductListComponent implements OnInit {
-  products: Product[] = [];
-  filteredProducts: Product[] = [];
+  paginatedProducts: Product[] = [];
   searchQuery = '';
   showModal = false;
   showDetailModal = false;
   selectedProduct: Product = this.getEmptyProduct();
   modalLoading = false;
+  loading = false;
+  
+  // Pagination state
+  currentPage = 1;
+  pageSize = 15;
+  totalPages = 1;
+  totalItems = 0;
+  pageArray: number[] = [];
+  Math = Math; // To use in template
   
   // Invoicing state
   selectedProductIds = new Set<string>();
@@ -317,15 +493,62 @@ export class ProductListComponent implements OnInit {
   selectedProductsForInvoice: Product[] = [];
   tempInvoice!: Invoice;
 
+  private searchSubject = new Subject<string>();
+  private searchSubscription?: Subscription;
+  private lastFetchedQuery: string | null = null;
+
   constructor(private dataService: DataService) {}
 
   ngOnInit() {
-    this.dataService.products$.subscribe(data => {
-      this.products = data;
-      this.onSearch();
-      // Clear selection if products change significantly
-      this.selectedProductIds.clear();
+    this.fetchProducts();
+    
+    // Setup debounce search (3s after stopped typing)
+    this.searchSubscription = this.searchSubject.pipe(
+      debounceTime(2000),
+      distinctUntilChanged()
+    ).subscribe((query) => {
+      // Chỉ thực hiện search nếu chưa được gọi bởi phím Enter
+      if (this.lastFetchedQuery !== query) {
+        this.onEnterSearch();
+      }
     });
+  }
+
+  ngOnDestroy() {
+    if (this.searchSubscription) {
+      this.searchSubscription.unsubscribe();
+    }
+  }
+
+  fetchProducts() {
+    this.loading = true;
+    this.dataService.getProductsPaginated(this.currentPage, this.pageSize, this.searchQuery)
+      .subscribe({
+        next: (res) => {
+          this.paginatedProducts = res.products;
+          this.totalItems = res.total;
+          this.totalPages = Math.ceil(res.total / this.pageSize) || 1;
+          this.updatePageArray();
+          this.loading = false;
+          // Cập nhật query cuối cùng đã fetch thành công
+          this.lastFetchedQuery = this.searchQuery;
+          // Clean selection if items are no longer visible
+          this.selectedProductIds.clear();
+        },
+        error: () => {
+          this.loading = false;
+        }
+      });
+  }
+
+  updatePageArray() {
+    this.pageArray = [];
+    // Show around current page
+    const start = Math.max(1, this.currentPage - 2);
+    const end = Math.min(this.totalPages, this.currentPage + 2);
+    for (let i = start; i <= end; i++) {
+      this.pageArray.push(i);
+    }
   }
 
   // Multi-select logic
@@ -341,13 +564,13 @@ export class ProductListComponent implements OnInit {
     if (this.isAllSelected()) {
       this.selectedProductIds.clear();
     } else {
-      this.filteredProducts.forEach(p => this.selectedProductIds.add(p.id));
+      this.paginatedProducts.forEach(p => this.selectedProductIds.add(p.id));
     }
   }
 
   isAllSelected(): boolean {
-    return this.filteredProducts.length > 0 && 
-           this.filteredProducts.every(p => this.selectedProductIds.has(p.id));
+    return this.paginatedProducts.length > 0 && 
+           this.paginatedProducts.every(p => this.selectedProductIds.has(p.id));
   }
 
   viewDetail(product: Product) {
@@ -366,12 +589,20 @@ export class ProductListComponent implements OnInit {
   }
 
   onSearch() {
-    const q = this.searchQuery.toLowerCase();
-    this.filteredProducts = this.products.filter(p => 
-      p.name.toLowerCase().includes(q) || 
-      p.imei.toLowerCase().includes(q) ||
-      p.color.toLowerCase().includes(q)
-    );
+    this.searchSubject.next(this.searchQuery);
+  }
+
+  onEnterSearch() {
+    this.currentPage = 1;
+    this.fetchProducts();
+  }
+
+  goToPage(page: number) {
+    if (page >= 1 && page <= this.totalPages) {
+      this.currentPage = page;
+      this.fetchProducts();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 
   getEmptyProduct(): Product {
@@ -410,6 +641,7 @@ export class ProductListComponent implements OnInit {
       next: () => {
         this.modalLoading = false;
         this.showModal = false;
+        this.fetchProducts(); // Refresh current page
       },
       error: () => {
         this.modalLoading = false;
@@ -419,7 +651,11 @@ export class ProductListComponent implements OnInit {
 
   deleteProduct(id: string) {
     if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
-      this.dataService.deleteProduct(id);
+      this.dataService.deleteProduct(id).subscribe({
+        next: () => {
+          this.fetchProducts(); // Refresh current page
+        }
+      });
     }
   }
 
@@ -429,7 +665,7 @@ export class ProductListComponent implements OnInit {
   }
 
   createBulkInvoice() {
-    this.selectedProductsForInvoice = this.products.filter(p => this.selectedProductIds.has(p.id));
+    this.selectedProductsForInvoice = this.paginatedProducts.filter(p => this.selectedProductIds.has(p.id));
     if (this.selectedProductsForInvoice.length > 0) {
       this.showInvoiceForm = true;
     }
@@ -451,9 +687,10 @@ export class ProductListComponent implements OnInit {
       next: () => {
         this.showConfirmModal = false;
         this.selectedProductIds.clear();
+        this.fetchProducts(); // Refresh to reflect sales
         alert('Lập hóa đơn thành công!');
       },
-      error: (err) => {
+      error: (err: any) => {
         console.error('Lỗi khi lưu hóa đơn:', err);
         alert('Có lỗi xảy ra khi lưu hóa đơn. Vui lòng thử lại.');
       }

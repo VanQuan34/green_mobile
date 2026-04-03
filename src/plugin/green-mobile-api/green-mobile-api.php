@@ -194,10 +194,42 @@ function gm_register_rest_routes() {
 /**
  * 3. CALLBACK FUNCTIONS - PRODUCTS
  */
-function gm_handle_get_products() {
+function gm_handle_get_products($request) {
     global $wpdb;
     $table = $wpdb->prefix . 'gm_products';
-    $results = $wpdb->get_results("SELECT * FROM $table ORDER BY created_at DESC");
+    
+    // Get parameters
+    $page = $request->get_param('page') ?: 1;
+    $per_page = $request->get_param('per_page') ?: 10;
+    $search = $request->get_param('search');
+    
+    $where_clause = " WHERE sale = 0 ";
+    $sql_params = array();
+    
+    if (!empty($search)) {
+        $search_term = '%' . $wpdb->esc_like($search) . '%';
+        $where_clause .= " AND (name LIKE %s OR imei LIKE %s OR color LIKE %s) ";
+        $sql_params[] = $search_term;
+        $sql_params[] = $search_term;
+        $sql_params[] = $search_term;
+    }
+    
+    // Total count
+    $total_sql = "SELECT COUNT(*) FROM $table $where_clause";
+    if (!empty($sql_params)) {
+        $total_sql = $wpdb->prepare($total_sql, ...$sql_params);
+    }
+    $total_items = (int)$wpdb->get_var($total_sql);
+    
+    // Pagination logic
+    $offset = ($page - 1) * $per_page;
+    $sql = "SELECT * FROM $table $where_clause ORDER BY created_at DESC LIMIT %d OFFSET %d";
+    
+    $final_params = $sql_params;
+    $final_params[] = (int)$per_page;
+    $final_params[] = (int)$offset;
+    
+    $results = $wpdb->get_results($wpdb->prepare($sql, ...$final_params));
     
     // Convert types to match Angular expectations
     foreach ($results as &$row) {
@@ -207,7 +239,11 @@ function gm_handle_get_products() {
         unset($row->original_price, $row->selling_price);
     }
     
-    return new WP_REST_Response($results, 200);
+    $response = new WP_REST_Response($results, 200);
+    $response->header('X-WP-Total', $total_items);
+    $response->header('X-WP-TotalPages', ceil($total_items / $per_page));
+    
+    return $response;
 }
 
 function gm_handle_create_product($request) {

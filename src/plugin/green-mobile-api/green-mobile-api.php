@@ -268,17 +268,37 @@ function gm_handle_delete_product($request) {
 /**
  * 4. CALLBACK FUNCTIONS - INVOICES
  */
-function gm_handle_get_invoices() {
+function gm_handle_get_invoices($request) {
     global $wpdb;
     $table_inv = $wpdb->prefix . 'gm_invoices';
     $table_usr = $wpdb->prefix . 'gm_users';
     $table_items = $wpdb->prefix . 'gm_invoice_items';
     
+    // Nhận tham số lọc ngày
+    $from_date = $request->get_param('from_date');
+    $to_date = $request->get_param('to_date');
+    
+    $where_clause = "";
+    $sql_params = array();
+    
+    if (!empty($from_date) && !empty($to_date)) {
+        $start = sanitize_text_field($from_date) . ' 00:00:00';
+        $end = sanitize_text_field($to_date) . ' 23:59:59';
+        $where_clause = " WHERE i.created_at BETWEEN %s AND %s ";
+        $sql_params[] = $start;
+        $sql_params[] = $end;
+    }
+    
     // 1. Fetch main invoice data with buyer info
     $sql = "SELECT i.*, u.name as buyer_name, u.phone as buyer_phone, u.address as buyer_address 
             FROM $table_inv i 
             LEFT JOIN $table_usr u ON i.buyer_id = u.id 
+            $where_clause
             ORDER BY i.created_at DESC";
+            
+    if (!empty($sql_params)) {
+        $sql = $wpdb->prepare($sql, ...$sql_params);
+    }
             
     $results = $wpdb->get_results($sql);
 

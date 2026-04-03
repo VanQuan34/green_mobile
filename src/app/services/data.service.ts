@@ -170,6 +170,20 @@ export class DataService {
     );
   }
 
+  getInvoicesByDateRange(startDate: string, endDate: string): Observable<Invoice[]> {
+    return this.http.get<Invoice[]>(`${this.apiUrl}/invoices`, {
+      params: {
+        from_date: startDate,
+        to_date: endDate
+      }
+    }).pipe(
+      catchError(err => {
+        this.toast.error('Lỗi khi tải dữ liệu xuất');
+        return throwError(() => err);
+      })
+    );
+  }
+
   private updateCustomerCache(invoice: Invoice) {
     const current = this.customersSubject.value;
     const exists = current.find(c => c.phone === invoice.buyerPhone);

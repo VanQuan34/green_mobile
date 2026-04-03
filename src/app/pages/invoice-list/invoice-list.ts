@@ -5,11 +5,13 @@ import { DataService } from '../../services/data.service';
 import { Invoice } from '../../models/data.models';
 import { InvoiceDetailModalComponent } from '../../components/invoice-detail-modal/invoice-detail-modal';
 import { InvoiceFormModalComponent } from '../../components/invoice-form-modal/invoice-form-modal';
+import { ExportInvoiceModalComponent } from '../../components/export-invoice-modal/export-invoice-modal';
+import * as XLSX from 'xlsx';
 
 @Component({
   selector: 'app-invoice-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, InvoiceDetailModalComponent, InvoiceFormModalComponent],
+  imports: [CommonModule, FormsModule, InvoiceDetailModalComponent, InvoiceFormModalComponent, ExportInvoiceModalComponent],
   template: `
     <div class="invoice-page animate-fade-in">
       <div class="list-header">
@@ -22,13 +24,20 @@ import { InvoiceFormModalComponent } from '../../components/invoice-form-modal/i
             (input)="onFilterChange()"
           >
         </div>
-        <div class="sort-controls glass-card">
-          <label>Sắp xếp theo nợ:</label>
-          <select [(ngModel)]="sortOrder" (change)="onFilterChange()">
-            <option value="desc">Nợ cao → thấp</option>
-            <option value="asc">Nợ thấp → cao</option>
-            <option value="none">Mặc định (Mới nhất)</option>
-          </select>
+        <div class="header-actions">
+          <div class="sort-controls glass-card">
+            <label>Sắp xếp theo nợ:</label>
+            <select [(ngModel)]="sortOrder" (change)="onFilterChange()">
+              <option value="desc">Nợ cao → thấp</option>
+              <option value="asc">Nợ thấp → cao</option>
+              <option value="none">Mặc định (Mới nhất)</option>
+            </select>
+          </div>
+
+          <button class="btn-export glass-card" (click)="exportToExcel()" title="Xuất danh sách ra Excel">
+            <span>📊</span>
+            <span class="btn-text">Xuất Excel</span>
+          </button>
         </div>
       </div>
 
@@ -114,6 +123,12 @@ import { InvoiceFormModalComponent } from '../../components/invoice-form-modal/i
         (close)="editingInvoice = null"
         (confirm)="onEditConfirm($event)">
       </app-invoice-form-modal>
+
+      <!-- Export Modal -->
+      <app-export-invoice-modal
+        *ngIf="showExportModal"
+        (close)="showExportModal = false">
+      </app-export-invoice-modal>
     </div>
   `,
   styles: [`
@@ -126,6 +141,13 @@ import { InvoiceFormModalComponent } from '../../components/invoice-form-modal/i
     .list-header {
       display: flex;
       justify-content: space-between;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .header-actions {
+      display: flex;
       gap: 1rem;
       align-items: center;
     }
@@ -169,6 +191,39 @@ import { InvoiceFormModalComponent } from '../../components/invoice-form-modal/i
       background: white;
       outline: none;
       cursor: pointer;
+    }
+
+    .btn-export {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.25rem;
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--text-main);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-export:hover {
+      background: var(--blue-light);
+      border-color: var(--blue);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+    }
+
+    .btn-export span:first-child {
+      font-size: 1.2rem;
+    }
+
+    @media (max-width: 768px) {
+      .btn-text {
+        display: none;
+      }
+      .btn-export {
+        padding: 0.75rem;
+      }
     }
     
     .table-container {
@@ -292,6 +347,7 @@ export class InvoiceListComponent implements OnInit {
   sortOrder: 'asc' | 'desc' | 'none' = 'desc'; // Mặc định nợ cao -> thấp
   selectedInvoice: Invoice | null = null;
   editingInvoice: Invoice | null = null;
+  showExportModal: boolean = false;
 
   constructor(private dataService: DataService) {}
 
@@ -346,5 +402,9 @@ export class InvoiceListComponent implements OnInit {
         // DataService reload automagically updates subject
       });
     }
+  }
+
+  exportToExcel() {
+    this.showExportModal = true;
   }
 }

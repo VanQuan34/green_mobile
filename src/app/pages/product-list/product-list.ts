@@ -36,12 +36,20 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
         </div>
         <div class="btn-group">
           <button 
-            *ngIf="selectedProductIds.size > 0"
+            *ngIf="selectedProductsMap.size > 0"
             class="btn btn-invoice animate-scale-up" 
             (click)="createBulkInvoice()"
           >
             <span class="icon">🧾</span>
-            <span>Lập hóa đơn ({{ selectedProductIds.size }})</span>
+            <span>Lập hóa đơn ({{ selectedProductsMap.size }})</span>
+          </button>
+          <button 
+            *ngIf="selectedProductsMap.size > 1"
+            class="btn btn-outline animate-scale-up" 
+            (click)="clearAllSelections()"
+          >
+            <span class="icon">✕</span>
+            <span>Hủy chọn</span>
           </button>
           <button class="btn btn-primary" (click)="openProductModal()">
             <span class="icon">+</span>
@@ -76,7 +84,7 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
           <tbody>
             <tr *ngFor="let product of paginatedProducts; let i = index" (click)="viewDetail(product)" class="clickable-row">
               <td (click)="$event.stopPropagation()">
-                <input type="checkbox" [checked]="selectedProductIds.has(product.id)" (change)="toggleSelect(product.id)">
+                <input type="checkbox" [checked]="selectedProductsMap.has(product.id)" (change)="toggleSelect(product)">
               </td>
               <td>{{ (currentPage - 1) * pageSize + i + 1 }}</td>
               <td>
@@ -443,6 +451,26 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
       border-color: var(--primary);
     }
 
+    .btn-outline {
+      padding: 0.5rem 1rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--text-muted);
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+    }
+
+    .btn-outline:hover {
+      background: var(--bg-main);
+      color: var(--text-main);
+      border-color: var(--text-muted);
+    }
+
     @media (max-width: 768px) {
       .action-bar {
         flex-direction: column;
@@ -487,7 +515,7 @@ export class ProductListComponent implements OnInit {
   Math = Math; // To use in template
   
   // Invoicing state
-  selectedProductIds = new Set<string>();
+  selectedProductsMap = new Map<string, Product>();
   showInvoiceForm = false;
   showConfirmModal = false;
   selectedProductsForInvoice: Product[] = [];
@@ -532,8 +560,7 @@ export class ProductListComponent implements OnInit {
           this.loading = false;
           // Cập nhật query cuối cùng đã fetch thành công
           this.lastFetchedQuery = this.searchQuery;
-          // Clean selection if items are no longer visible
-          this.selectedProductIds.clear();
+          // Loại bỏ dòng clear() để giữ lựa chọn đa trang
         },
         error: () => {
           this.loading = false;
@@ -552,25 +579,29 @@ export class ProductListComponent implements OnInit {
   }
 
   // Multi-select logic
-  toggleSelect(id: string) {
-    if (this.selectedProductIds.has(id)) {
-      this.selectedProductIds.delete(id);
+  toggleSelect(product: Product) {
+    if (this.selectedProductsMap.has(product.id)) {
+      this.selectedProductsMap.delete(product.id);
     } else {
-      this.selectedProductIds.add(id);
+      this.selectedProductsMap.set(product.id, product);
     }
   }
 
   toggleSelectAll() {
     if (this.isAllSelected()) {
-      this.selectedProductIds.clear();
+      this.paginatedProducts.forEach(p => this.selectedProductsMap.delete(p.id));
     } else {
-      this.paginatedProducts.forEach(p => this.selectedProductIds.add(p.id));
+      this.paginatedProducts.forEach(p => this.selectedProductsMap.set(p.id, p));
     }
   }
 
   isAllSelected(): boolean {
     return this.paginatedProducts.length > 0 && 
-           this.paginatedProducts.every(p => this.selectedProductIds.has(p.id));
+           this.paginatedProducts.every(p => this.selectedProductsMap.has(p.id));
+  }
+
+  clearAllSelections() {
+    this.selectedProductsMap.clear();
   }
 
   viewDetail(product: Product) {
@@ -665,7 +696,7 @@ export class ProductListComponent implements OnInit {
   }
 
   createBulkInvoice() {
-    this.selectedProductsForInvoice = this.paginatedProducts.filter(p => this.selectedProductIds.has(p.id));
+    this.selectedProductsForInvoice = Array.from(this.selectedProductsMap.values());
     if (this.selectedProductsForInvoice.length > 0) {
       this.showInvoiceForm = true;
     }
@@ -686,7 +717,7 @@ export class ProductListComponent implements OnInit {
     this.dataService.addInvoice(this.tempInvoice).subscribe({
       next: () => {
         this.showConfirmModal = false;
-        this.selectedProductIds.clear();
+        this.selectedProductsMap.clear();
         this.fetchProducts(); // Refresh to reflect sales
         alert('Lập hóa đơn thành công!');
       },

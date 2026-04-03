@@ -24,7 +24,7 @@ import { Subscription } from 'rxjs';
       position: fixed;
       top: 1.5rem;
       right: 1.5rem;
-      z-index: 9999;
+      z-index: 99999;
       display: flex;
       flex-direction: column;
       gap: 0.75rem;

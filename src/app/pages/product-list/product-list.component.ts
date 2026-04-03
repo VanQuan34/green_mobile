@@ -301,17 +301,24 @@ export class ProductListComponent implements OnInit {
 
   onSaveProduct(product: Product) {
     if (product.id) {
-      this.dataService.updateProduct(product);
+      this.dataService.updateProduct(product).subscribe();
     } else {
-      this.dataService.addProduct(product);
+      this.dataService.addProduct(product).subscribe();
     }
     this.showModal = false;
   }
 
   deleteProduct(id: string) {
-    if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
-      this.dataService.deleteProduct(id);
-    }
+    console.log('!!! DEBUG: Bắt đầu gọi deleteProduct ID:', id);
+    // Bỏ tạm confirm để test
+    this.dataService.deleteProduct(id).subscribe({
+      next: () => {
+        console.log('!!! DEBUG: Xóa thành công ID:', id);
+      },
+      error: (e) => {
+        console.error('!!! DEBUG: Lỗi xóa:', e);
+      }
+    });
   }
 
   createInvoice(product: Product) {
@@ -331,8 +338,7 @@ export class ProductListComponent implements OnInit {
   }
 
   onFinalSubmit() {
-    this.dataService.addInvoice(this.tempInvoice);
+    this.dataService.addInvoice(this.tempInvoice).subscribe();
     this.showConfirmModal = false;
-    alert('Lập hóa đơn thành công!');
   }
 }

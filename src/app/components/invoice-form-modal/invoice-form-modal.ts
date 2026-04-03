@@ -9,8 +9,8 @@ import { DataService } from '../../services/data.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="modal-overlay animate-fade-in" (click)="onClose()">
-      <div class="modal-content glass-card" (click)="$event.stopPropagation()">
+    <div class="modal-overlay animate-fade-in">
+      <div class="modal-content glass-card">
         <header class="modal-header">
           <h3>{{ editInvoice ? 'Chỉnh sửa hóa đơn' : 'Lập hóa đơn bán hàng' }}</h3>
           <button class="close-btn" (click)="onClose()">✕</button>

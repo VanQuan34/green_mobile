@@ -230,7 +230,8 @@ function gm_handle_create_product($request) {
     $inserted = $wpdb->insert($table, $data);
 
     if ($inserted) {
-        return new WP_REST_Response(array('id' => $wpdb->insert_id, 'message' => 'Success'), 201);
+        $params['id'] = (string)$wpdb->insert_id;
+        return new WP_REST_Response(array('data' => $params, 'message' => 'Success'), 201);
     }
     return new WP_Error('db_error', 'Could not create product', array('status' => 500));
 }
@@ -251,8 +252,9 @@ function gm_handle_update_product($request) {
     if (isset($params['sale'])) $data['sale'] = (int)$params['sale'];
 
     $updated = $wpdb->update($table, $data, array('id' => $id));
+    $params['id'] = $id;
 
-    return new WP_REST_Response(array('message' => 'Updated successfully'), 200);
+    return new WP_REST_Response(array('data' => $params, 'message' => 'Updated successfully'), 200);
 }
 
 function gm_handle_delete_product($request) {
@@ -421,7 +423,8 @@ function gm_handle_create_invoice($request) {
             $wpdb->update($table_prod, array('sale' => 1), array('id' => $p_id));
         }
         
-        return new WP_REST_Response(array('id' => $invoice_id, 'message' => 'Invoice created'), 201);
+        $params['id'] = $invoice_id;
+        return new WP_REST_Response(array('data' => $params, 'message' => 'Invoice created'), 201);
     }
     
     return new WP_Error('db_error', 'SQL Error: ' . $wpdb->last_error, array('status' => 500));
@@ -465,7 +468,7 @@ function gm_handle_update_invoice($request) {
     );
 
     $wpdb->update($table_inv, $data, array('id' => $id));
-
+    
     // 3. Cập nhật items (xóa cũ thêm mới cho đơn giản)
     $wpdb->delete($table_items, array('invoice_id' => $id));
     $products = $params['products'] ?? array();
@@ -477,8 +480,9 @@ function gm_handle_update_invoice($request) {
             'price'        => (int)($p['sellingPrice'] ?? 0)
         ));
     }
-
-    return new WP_REST_Response(array('message' => 'Updated', 'id' => $id), 200);
+    
+    $params['id'] = $id;
+    return new WP_REST_Response(array('data' => $params, 'message' => 'Updated'), 200);
 }
 
 function gm_handle_get_customers() {

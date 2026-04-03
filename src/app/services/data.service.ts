@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, map, of, tap, catchError, throwError } from 'rxjs';
+import { BehaviorSubject, Observable, map, of, tap, catchError, throwError, finalize } from 'rxjs';
 import { Product, Invoice } from '../models/data.models';
 import { HttpClient } from '@angular/common/http';
 import { ToastService } from './toast.service';
@@ -9,7 +9,6 @@ import { ToastService } from './toast.service';
 })
 export class DataService {
   private apiUrl = process.env['NG_APP_API_URL'] || 'https://quantv.store/wp-json/gm/v1';
-  private storageType = process.env['NG_APP_STORAGE_TYPE'] || 'api';
   private http = inject(HttpClient);
   private toast = inject(ToastService);
 
@@ -18,7 +17,6 @@ export class DataService {
   private customersSubject = new BehaviorSubject<any[]>([]);
 
   customers$ = this.customersSubject.asObservable();
-
   products$ = this.productsSubject.asObservable().pipe(
     map(list => list.filter(p => !p.sale))
   );
@@ -28,16 +26,8 @@ export class DataService {
     this.loadInitialData();
   }
 
-  private get isLocal(): boolean {
-    return this.storageType === 'api';
-  }
-
   loadInitialData() {
-    if (this.isLocal) {
-      this.loadLocalData();
-    } else {
-      this.loadApiData();
-    }
+    this.loadApiData();
   }
 
   private loadApiData() {
@@ -57,114 +47,63 @@ export class DataService {
     });
   }
 
-  private loadLocalData() {
-    const products = JSON.parse(localStorage.getItem('gm_products') || '[]');
-    const invoices = JSON.parse(localStorage.getItem('gm_invoices') || '[]');
-    this.productsSubject.next(products);
-    this.invoicesSubject.next(invoices);
-
-    // If local and empty, maybe initialize with some dummy data?
-    if (products.length === 0) {
-      this.initializeMockData();
-    }
-  }
-
-  private initializeMockData() {
-    const mockProducts: Product[] = [
-      {
-        id: '1',
-        name: 'iPhone 15 Pro Max',
-        sellingPrice: 29000000,
-        originalPrice: 32000000,
-        image: '',
-        imei: '123456789',
-        capacity: '256GB',
-        color: 'Titanium',
-        status: 'New'
-      },
-      {
-        id: '2',
-        name: 'Samsung S24 Ultra',
-        sellingPrice: 25000000,
-        originalPrice: 28000000,
-        image: '',
-        imei: '987654321',
-        capacity: '512GB',
-        color: 'Black',
-        status: 'New'
-      }
-    ];
-    localStorage.setItem('gm_products', JSON.stringify(mockProducts));
-    this.productsSubject.next(mockProducts);
-  }
-
   // Product Methods
   getProducts(): Product[] {
     return this.productsSubject.value;
   }
 
   addProduct(product: Product): Observable<any> {
-    if (this.isLocal) {
-      const current = this.productsSubject.value;
-      const newProduct = { ...product, id: Date.now().toString() };
-      const updated = [...current, newProduct];
-      this.saveLocal('gm_products', updated, this.productsSubject);
-      this.toast.success('Đã thêm sản phẩm mới');
-      return of(newProduct);
-    } else {
-      return this.http.post(`${this.apiUrl}/products`, product).pipe(
-        tap(() => {
-          this.loadInitialData();
-          this.toast.success('Đã thêm sản phẩm thành công');
-        }),
-        catchError(err => {
-          this.toast.error('Lỗi khi thêm sản phẩm');
-          return throwError(() => err);
-        })
-      );
-    }
+    return this.http.post<any>(`${this.apiUrl}/products`, product).pipe(
+      map(res => res.data || res),
+      tap((newProduct: Product) => {
+        const current = this.productsSubject.value;
+        this.productsSubject.next([newProduct, ...current]);
+        this.toast.success('Đã thêm sản phẩm thành công');
+      }),
+      catchError(err => {
+        this.toast.error('Lỗi khi thêm sản phẩm');
+        return throwError(() => err);
+      })
+    );
   }
 
   updateProduct(product: Product): Observable<any> {
-    if (this.isLocal) {
-      const current = this.productsSubject.value;
-      const updated = current.map(p => p.id === product.id ? product : p);
-      this.saveLocal('gm_products', updated, this.productsSubject);
-      this.toast.success('Đã cập nhật sản phẩm');
-      return of(product);
-    } else {
-      return this.http.put(`${this.apiUrl}/products/${product.id}`, product).pipe(
-        tap(() => {
-          this.loadInitialData();
-          this.toast.success('Cập nhật sản phẩm thành công');
-        }),
-        catchError(err => {
-          this.toast.error('Lỗi khi cập nhật sản phẩm');
-          return throwError(() => err);
-        })
-      );
-    }
+    return this.http.put<any>(`${this.apiUrl}/products/${product.id}`, product).pipe(
+      map(res => res.data || res),
+      tap((newPayload: Product) => {
+        const current = this.productsSubject.value;
+        const updated = current.map(p => p.id.toString() === product.id.toString() ? { ...p, ...newPayload } : p);
+        console.log('update==', updated, 'current==', current, 'newPayload=', newPayload);
+        this.productsSubject.next(updated);
+        this.toast.success('Cập nhật sản phẩm thành công');
+      }),
+      catchError(err => {
+        this.toast.error('Lỗi khi cập nhật sản phẩm');
+        return throwError(() => err);
+      })
+    );
   }
 
   deleteProduct(id: string): Observable<any> {
-    if (this.isLocal) {
-      const current = this.productsSubject.value;
-      const updated = current.filter(p => p.id !== id);
-      this.saveLocal('gm_products', updated, this.productsSubject);
-      this.toast.success('Đã xóa sản phẩm');
-      return of(null);
-    } else {
-      return this.http.delete(`${this.apiUrl}/products/${id}`).pipe(
-        tap(() => {
-          this.loadInitialData();
-          this.toast.success('Đã xóa sản phẩm');
-        }),
-        catchError(err => {
-          this.toast.error('Lỗi khi xóa sản phẩm');
-          return throwError(() => err);
-        })
-      );
-    }
+    return of(true);
+    console.log('DataService: Bắt đầu xóa sản phẩm với ID:', id);
+    const cleanId = id.toString().trim();
+    const deleteUrl = `${this.apiUrl}/products/${encodeURIComponent(cleanId)}`;
+    console.log('DataService: URL xóa:', deleteUrl);
+    
+    return this.http.delete(deleteUrl).pipe(
+      tap(() => {
+        console.log('DataService: API xóa thành công, đang cập nhật danh sách local...');
+        const current = this.productsSubject.value;
+        this.productsSubject.next(current.filter(p => p.id.toString() !== cleanId));
+        this.toast.success('Đã xóa sản phẩm');
+      }),
+      catchError(err => {
+        console.error('DataService: Lỗi gọi API xóa:', err);
+        this.toast.error('Lỗi khi xóa sản phẩm');
+        return throwError(() => err);
+      })
+    );
   }
 
   // Invoice Methods
@@ -173,85 +112,62 @@ export class DataService {
   }
 
   addInvoice(invoice: Invoice): Observable<any> {
-    if (this.isLocal) {
-      const current = this.invoicesSubject.value;
-      const newInvoice = { ...invoice, id: Date.now().toString() };
-      const updated = [...current, newInvoice];
-      this.saveLocal('gm_invoices', updated, this.invoicesSubject);
-      this.updateCustomerCache(invoice);
-      this.markProductsAsSold(invoice.products || []);
-      this.toast.success('Lập hóa đơn thành công!');
-      return of(newInvoice);
-    } else {
-      return this.http.post(`${this.apiUrl}/invoices`, invoice).pipe(
-        tap(() => this.toast.success('Lập hóa đơn thành công!')),
-        catchError(err => {
-          this.toast.error('Lỗi khi lập hóa đơn');
-          return throwError(() => err);
-        }),
-        map(res => {
-          this.loadInitialData();
-          this.updateCustomerCache(invoice);
-          return res;
-        })
-      );
-    }
+    return this.http.post<any>(`${this.apiUrl}/invoices`, invoice).pipe(
+      map(res => res.data || res),
+      tap((newInvoice: Invoice) => {
+        const currentInvoices = this.invoicesSubject.value;
+        this.invoicesSubject.next([newInvoice, ...currentInvoices]);
+        this.updateCustomerCache(newInvoice);
+        this.markProductsAsSold(newInvoice.products || []);
+        this.toast.success('Lập hóa đơn thành công!');
+      }),
+      catchError(err => {
+        this.toast.error('Lỗi khi lập hóa đơn');
+        return throwError(() => err);
+      })
+    );
   }
 
   private markProductsAsSold(products: Product[]) {
-    if (!this.isLocal) return;
     const currentProducts = this.productsSubject.value;
-    const soldIds = products.map(p => p.id);
+    const soldIds = products.map(p => p.id.toString());
     const updated = currentProducts.map(p =>
-      soldIds.includes(p.id) ? { ...p, sale: true } : p
+      soldIds.includes(p.id.toString()) ? { ...p, sale: true } : p
     );
-    this.saveLocal('gm_products', updated, this.productsSubject);
+    this.productsSubject.next(updated);
   }
 
   deleteInvoice(id: string): Observable<any> {
-    if (this.isLocal) {
-      const current = this.invoicesSubject.value;
-      const updated = current.filter(i => i.id !== id);
-      this.saveLocal('gm_invoices', updated, this.invoicesSubject);
-      this.toast.success('Đã xóa hóa đơn');
-      return of(null);
-    } else {
-      return this.http.delete(`${this.apiUrl}/invoices/${id}`).pipe(
-        tap(() => this.toast.success('Đã xóa hóa đơn')),
-        catchError(err => {
-          this.toast.error('Lỗi khi xóa hóa đơn');
-          return throwError(() => err);
-        }),
-        map(res => {
-          this.loadInitialData();
-          return res;
-        })
-      );
-    }
+    return of(true);
+    return this.http.delete(`${this.apiUrl}/invoices/${id}`).pipe(
+      tap(() => {
+        const current = this.invoicesSubject.value;
+        const updated = current.filter(i => i.id.toString() !== id.toString());
+        this.invoicesSubject.next(updated);
+        this.toast.success('Đã xóa hóa đơn');
+      }),
+      catchError(err => {
+        this.toast.error('Lỗi khi xóa hóa đơn');
+        return throwError(() => err);
+      })
+    );
   }
 
   updateInvoice(invoice: Invoice): Observable<any> {
-    if (this.isLocal) {
-      const current = this.invoicesSubject.value;
-      const updated = current.map(i => i.id === invoice.id ? { ...invoice } : i);
-      this.saveLocal('gm_invoices', updated, this.invoicesSubject);
-      this.updateCustomerCache(invoice);
-      this.toast.success('Đã cập nhật hóa đơn');
-      return of(invoice);
-    } else {
-      return this.http.put(`${this.apiUrl}/invoices/${invoice.id}`, invoice).pipe(
-        tap(() => this.toast.success('Đã cập nhật hóa đơn')),
-        catchError(err => {
-          this.toast.error('Lỗi khi cập nhật hóa đơn');
-          return throwError(() => err);
-        }),
-        map(res => {
-          this.loadInitialData();
-          this.updateCustomerCache(invoice);
-          return res;
-        })
-      );
-    }
+    return this.http.put<any>(`${this.apiUrl}/invoices/${invoice.id}`, invoice).pipe(
+      map(res => res.data || res),
+      tap((newPayload: Invoice) => {
+        const current = this.invoicesSubject.value;
+        const updated = current.map(i => i.id.toString() === invoice.id.toString() ? { ...i, ...newPayload } : i);
+        this.invoicesSubject.next(updated);
+        this.updateCustomerCache(invoice);
+        this.toast.success('Đã cập nhật hóa đơn');
+      }),
+      catchError(err => {
+        this.toast.error('Lỗi khi cập nhật hóa đơn');
+        return throwError(() => err);
+      })
+    );
   }
 
   private updateCustomerCache(invoice: Invoice) {
@@ -272,11 +188,6 @@ export class DataService {
     }
 
     this.customersSubject.next(updated);
-  }
-
-  private saveLocal(key: string, data: any, subject: BehaviorSubject<any>) {
-    localStorage.setItem(key, JSON.stringify(data));
-    subject.next(data);
   }
 
   // Get unique customers from sync cache (always refreshed at startup)
@@ -326,8 +237,6 @@ export class DataService {
         if (unit === 1 && ten > 1) res += 'mốt';
         else if (unit === 5 && ten > 0) res += 'lăm';
         else res += digits[unit];
-      } else if (unit === 0 && hundred === 0 && ten === 0 && !hasHundred) {
-        // Just skip
       }
 
       return res.trim();

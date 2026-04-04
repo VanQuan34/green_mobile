@@ -170,6 +170,13 @@ function gm_register_rest_routes() {
         )
     ));
 
+    // Login Endpoint
+    register_rest_route($namespace, '/login', array(
+        'methods'  => 'POST',
+        'callback' => 'gm_handle_login',
+        'permission_callback' => '__return_true'
+    ));
+
     register_rest_route($namespace, '/invoices/(?P<id>[a-zA-Z0-9_-]+)', array(
         array(
             'methods'  => 'PUT',
@@ -567,6 +574,66 @@ function gm_handle_get_customers() {
     $table = $wpdb->prefix . 'gm_users';
     $results = $wpdb->get_results("SELECT name, phone, address FROM $table ORDER BY name ASC");
     return new WP_REST_Response($results, 200);
+}
+
+/**
+ * 4. AUTHENTICATION & JWT
+ */
+function gm_base64url_encode($data) {
+    return str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($data));
+}
+
+function gm_generate_jwt($user) {
+    $header = gm_base64url_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
+    
+    $issuedAt = time();
+    $expire = $issuedAt + (24 * 60 * 60); // 24 hours
+    
+    $payload = gm_base64url_encode(json_encode([
+        'user_id'  => $user->ID,
+        'username' => $user->user_login,
+        'email'    => $user->user_email,
+        'iat'      => $issuedAt,
+        'exp'      => $expire
+    ]));
+    
+    $secret = defined('AUTH_KEY') ? AUTH_KEY : 'gm_secret_fallback_123';
+    $signature = gm_base64url_encode(hash_hmac('sha256', "$header.$payload", $secret, true));
+    
+    return [
+        'token' => "$header.$payload.$signature",
+        'exp'   => $expire
+    ];
+}
+
+function gm_handle_login($request) {
+    $params = $request->get_json_params();
+    $username = $params['username'] ?? '';
+    $password = $params['password'] ?? '';
+    
+    if (empty($username) || empty($password)) {
+        return new WP_Error('missing_params', 'Vui lòng nhập tên đăng nhập và mật khẩu.', array('status' => 400));
+    }
+    
+    $user = wp_authenticate($username, $password);
+    
+    if (is_wp_error($user)) {
+        return new WP_Error('auth_failed', 'Tên đăng nhập hoặc mật khẩu không chính xác.', array('status' => 403));
+    }
+    
+    $jwt_data = gm_generate_jwt($user);
+    
+    return new WP_REST_Response([
+        'token'     => $jwt_data['token'],
+        'expires'   => $jwt_data['exp'],
+        'user'      => [
+            'id'       => $user->ID,
+            'name'     => $user->display_name,
+            'username' => $user->user_login,
+            'email'    => $user->user_email,
+            'roles'    => $user->roles
+        ]
+    ], 200);
 }
 
 /**

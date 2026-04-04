@@ -21,18 +21,31 @@ import { AuthService } from '../../services/auth.service';
         
         <form (ngSubmit)="onLogin()">
           <div class="form-group">
-            <label class="required">Mật khẩu quản trị</label>
+            <label class="required">Tên đăng nhập</label>
+            <input 
+              type="text" 
+              [(ngModel)]="username" 
+              name="username" 
+              placeholder="Nhập tên đăng nhập..." 
+              required
+              [disabled]="loading"
+            >
+          </div>
+
+          <div class="form-group">
+            <label class="required">Mật khẩu</label>
             <input 
               type="password" 
               [(ngModel)]="password" 
               name="password" 
               placeholder="Nhập mật khẩu..." 
               required
+              [disabled]="loading"
             >
           </div>
           
-          <button type="submit" class="btn btn-primary btn-block">
-            Đăng nhập hệ thống
+          <button type="submit" class="btn btn-primary btn-block" [disabled]="loading">
+            {{ loading ? 'Đang xác thực...' : 'Đăng nhập hệ thống' }}
           </button>
           
           <p class="error-msg" *ngIf="error">{{ error }}</p>
@@ -93,7 +106,7 @@ import { AuthService } from '../../services/auth.service';
     
     .form-group {
       text-align: left;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
     }
     
     label {
@@ -107,15 +120,30 @@ import { AuthService } from '../../services/auth.service';
     input {
       width: 100%;
     }
+
+    input:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
     
     .btn-block {
       width: 100%;
       justify-content: center;
       padding: 0.85rem;
+      margin-top: 1rem;
+    }
+
+    .btn-block:disabled {
+      opacity: 0.8;
+      cursor: wait;
     }
     
     .error-msg {
       margin-top: 1rem;
+      padding: 0.75rem;
+      background: #fef2f2;
+      border: 1px solid #fee2e2;
+      border-radius: 8px;
       color: #ef4444;
       font-size: 0.8rem;
     }
@@ -138,16 +166,31 @@ import { AuthService } from '../../services/auth.service';
   `]
 })
 export class LoginComponent {
+  username = '';
   password = '';
   error = '';
+  loading = false;
 
   constructor(private authService: AuthService, private router: Router) {}
 
   onLogin() {
-    if (this.authService.login(this.password)) {
-      this.router.navigate(['/products']);
-    } else {
-      this.error = 'Mật khẩu không chính xác. Thử "admin123"';
+    if (!this.username || !this.password) {
+      this.error = 'Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.';
+      return;
     }
+
+    this.loading = true;
+    this.error = '';
+
+    this.authService.login(this.username, this.password).subscribe({
+      next: () => {
+        this.loading = false;
+        this.router.navigate(['/products']);
+      },
+      error: (err) => {
+        this.loading = false;
+        this.error = err.error?.message || 'Đăng nhập thất bại. Hệ thống không phản hồi.';
+      }
+    });
   }
 }

@@ -49,7 +49,7 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
 
         <div class="action-group">
           <button class="btn btn-primary btn-add" (click)="showManualDebtModal = true">
-            <span class="icon">➕</span> Quản lý nợ ngoài
+            <span class="icon">+</span> Quản lý nợ ngoài
           </button>
         </div>
       </div>

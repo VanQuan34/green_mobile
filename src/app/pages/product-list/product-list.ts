@@ -664,15 +664,31 @@ export class ProductListComponent implements OnInit {
 
   onSaveProduct(product: Product) {
     this.modalLoading = true;
-    const operation = product.id
+    const isUpdate = !!product.id;
+    const operation = isUpdate
       ? this.dataService.updateProduct(product)
       : this.dataService.addProduct(product);
 
     operation.subscribe({
-      next: () => {
+      next: (res) => {
+        const updatedProduct = res.data || res;
         this.modalLoading = false;
         this.showModal = false;
-        this.fetchProducts(); // Refresh current page
+        
+        if (isUpdate) {
+          // Cập nhật local thay vì call lại list
+          this.paginatedProducts = this.paginatedProducts.map(p => 
+            p.id.toString() === updatedProduct.id.toString() ? { ...p, ...updatedProduct } : p
+          );
+          // Cập nhật cả Map nếu đang được chọn
+          if (this.selectedProductsMap.has(updatedProduct.id)) {
+            this.selectedProductsMap.set(updatedProduct.id, { ...updatedProduct });
+          }
+        } else {
+          // Sản phẩm mới thì nên fetch lại để đúng thứ tự/phân trang
+          this.currentPage = 1;
+          this.fetchProducts();
+        }
       },
       error: () => {
         this.modalLoading = false;

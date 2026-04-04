@@ -83,7 +83,8 @@ export class DataService {
         this.toast.success('Đã thêm sản phẩm thành công');
       }),
       catchError(err => {
-        this.toast.error('Lỗi khi thêm sản phẩm');
+        const errorMsg = err.error?.message || 'Lỗi khi thêm sản phẩm';
+        this.toast.error(errorMsg);
         return throwError(() => err);
       })
     );
@@ -100,7 +101,8 @@ export class DataService {
         this.toast.success('Cập nhật sản phẩm thành công');
       }),
       catchError(err => {
-        this.toast.error('Lỗi khi cập nhật sản phẩm');
+        const errorMsg = err.error?.message || 'Lỗi khi cập nhật sản phẩm';
+        this.toast.error(errorMsg);
         return throwError(() => err);
       })
     );

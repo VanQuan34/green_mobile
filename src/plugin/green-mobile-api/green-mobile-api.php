@@ -251,9 +251,20 @@ function gm_handle_create_product($request) {
     $params = $request->get_json_params();
     $table = $wpdb->prefix . 'gm_products';
 
+    $imei = sanitize_text_field($params['imei'] ?? '');
+    if (empty($imei)) {
+        return new WP_Error('missing_imei', 'Vui lòng nhập số IMEI.', array('status' => 400));
+    }
+
+    // Check if IMEI already exists
+    $exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table WHERE imei = %s LIMIT 1", $imei));
+    if ($exists) {
+        return new WP_Error('duplicate_imei', 'Số IMEI này đã tồn tại trong hệ thống. Vui lòng kiểm tra lại.', array('status' => 400));
+    }
+
     $data = array(
         'name'           => sanitize_text_field($params['name']),
-        'imei'           => sanitize_text_field($params['imei']),
+        'imei'           => $imei,
         'image'          => esc_url_raw($params['image'] ?? ''),
         'capacity'       => sanitize_text_field($params['capacity'] ?? ''),
         'color'          => sanitize_text_field($params['color'] ?? ''),
@@ -274,13 +285,23 @@ function gm_handle_create_product($request) {
 
 function gm_handle_update_product($request) {
     global $wpdb;
-    $id = $request['id'];
+    $id = (int)$request['id'];
     $params = $request->get_json_params();
     $table = $wpdb->prefix . 'gm_products';
 
     $data = array();
     if (isset($params['name'])) $data['name'] = sanitize_text_field($params['name']);
-    if (isset($params['imei'])) $data['imei'] = sanitize_text_field($params['imei']);
+    
+    if (isset($params['imei'])) {
+        $imei = sanitize_text_field($params['imei']);
+        // Check if IMEI already exists for ANOTHER product
+        $exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table WHERE imei = %s AND id != %d LIMIT 1", $imei, $id));
+        if ($exists) {
+            return new WP_Error('duplicate_imei', 'Số IMEI này đã bị trùng với một sản phẩm khác.', array('status' => 400));
+        }
+        $data['imei'] = $imei;
+    }
+
     if (isset($params['image'])) $data['image'] = esc_url_raw($params['image']);
     if (isset($params['status'])) $data['status'] = sanitize_text_field($params['status']);
     if (isset($params['originalPrice'])) $data['original_price'] = (int)$params['originalPrice'];

@@ -2,6 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
+import { AuthService } from '../../services/auth.service';
+import { ThemeService } from '../../services/theme.service';
 
 @Component({
   selector: 'app-settings',
@@ -10,6 +12,37 @@ import { DataService } from '../../services/data.service';
   template: `
     <div class="settings-page animate-fade-in">
       <div class="settings-grid">
+        <!-- User Profile Section -->
+        <div class="settings-card glass-card user-info-card">
+          <div class="card-header">
+            <span class="icon">👤</span>
+            <div class="header-text">
+              <h3>Thông tin tài khoản</h3>
+              <p>Chi tiết về người dùng đang đăng nhập.</p>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="user-display">
+              <div class="large-avatar">{{ getUserInitials() }}</div>
+              <div class="user-details">
+                <h4 class="name">{{ currentUser?.name }}</h4>
+                <p class="role-text">{{ currentUser?.roles?.join(', ') }}</p>
+              </div>
+            </div>
+            
+            <div class="info-list">
+              <div class="info-item">
+                <label>Tên đăng nhập</label>
+                <span>{{ currentUser?.username }}</span>
+              </div>
+              <div class="info-item">
+                <label>Email</label>
+                <span>{{ currentUser?.email }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Google Sheets Sync Section -->
         <div class="settings-card glass-card">
           <div class="card-header">
@@ -49,7 +82,59 @@ import { DataService } from '../../services/data.service';
           </div>
         </div>
 
-        <!-- System Info Card (Read only example) -->
+        <!-- Theme Color Section [NEW] -->
+        <div class="settings-card glass-card">
+          <div class="card-header">
+            <span class="icon">🎨</span>
+            <div class="header-text">
+              <h3>Giao diện & Màu sắc</h3>
+              <p>Tùy chỉnh màu chủ đạo của hệ thống.</p>
+            </div>
+          </div>
+          
+          <div class="card-body">
+            <div class="color-control-wrapper">
+              <div class="form-group color-picker-group">
+                <label>Bảng màu tùy chỉnh</label>
+                <div class="color-input-container">
+                  <input 
+                    type="color" 
+                    [(ngModel)]="settings.primary_color" 
+                    (change)="onColorChange()"
+                  >
+                  <span class="color-hex">{{ settings.primary_color }}</span>
+                </div>
+              </div>
+
+              <div class="presets-group">
+                <label>Màu mẫu có sẵn</label>
+                <div class="presets-grid">
+                  <button 
+                    *ngFor="let preset of presets" 
+                    class="preset-item"
+                    [style.background-color]="preset.color"
+                    [title]="preset.name"
+                    [class.active]="settings.primary_color === preset.color"
+                    (click)="applyPreset(preset.color)"
+                  >
+                    <span class="check" *ngIf="settings.primary_color === preset.color">✓</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="preview-area">
+              <div class="preview-box">
+                <span class="preview-label">Xem trước:</span>
+                <button class="btn btn-primary">Nút bấm chính</button>
+                <button class="btn btn-outline">Nút bấm phụ</button>
+                <div class="status-badge success">Trạng thái</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- System Info Card -->
         <div class="settings-card glass-card info-card">
           <div class="card-header">
             <span class="icon">ℹ️</span>
@@ -119,6 +204,65 @@ import { DataService } from '../../services/data.service';
     
     .card-body {
       padding: 1.5rem;
+    }
+
+    /* User Card Styles */
+    .user-display {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .large-avatar {
+      width: 64px;
+      height: 64px;
+      background: var(--primary);
+      color: white;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 800;
+      box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
+    }
+
+    .user-details .name {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin: 0;
+      color: var(--text-main);
+    }
+
+    .role-text {
+      font-size: 0.85rem;
+      color: var(--primary);
+      font-weight: 600;
+      margin: 0;
+      text-transform: capitalize;
+    }
+
+    .info-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    .info-item label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .info-item span {
+      font-weight: 600;
+      color: var(--text-main);
     }
     
     .form-group {
@@ -191,29 +335,157 @@ import { DataService } from '../../services/data.service';
       background: var(--primary-light);
       color: var(--primary-dark);
     }
+
+    /* Color Specific Styles */
+    .color-control-wrapper {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .color-input-container {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+
+    input[type="color"] {
+      -webkit-appearance: none;
+      border: none;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      overflow: hidden;
+    }
+
+    input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    input[type="color"]::-webkit-color-swatch {
+      border: none;
+    }
+
+    .color-hex {
+      font-family: monospace;
+      font-weight: 700;
+      color: var(--text-main);
+      background: var(--bg-main);
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .presets-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    .preset-item {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 0 0 1px var(--border);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .preset-item:hover {
+      transform: scale(1.1);
+    }
+
+    .preset-item.active {
+      transform: scale(1.1);
+      box-shadow: 0 0 0 2px var(--primary);
+    }
+
+    .preset-item .check {
+      color: white;
+      font-size: 14px;
+      font-weight: bold;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+
+    .preview-area {
+      background: #f1f5f9;
+      padding: 1.5rem;
+      border-radius: 12px;
+      border: 1px dashed var(--border);
+    }
+
+    .preview-box {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .preview-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    @media (max-width: 600px) {
+      .color-control-wrapper {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .info-list {
+        grid-template-columns: 1fr;
+      }
+    }
   `]
 })
 export class SettingsComponent implements OnInit {
   settings: any = {
-    google_sheet_url: ''
+    google_sheet_url: '',
+    primary_color: '#10b981'
   };
+  currentUser: any;
+  presets: any[] = [];
   loading = false;
 
-  constructor(private dataService: DataService) {}
+  constructor(
+    private dataService: DataService,
+    private authService: AuthService,
+    private themeService: ThemeService
+  ) {}
 
   ngOnInit() {
+    this.currentUser = this.authService.getUser();
+    this.presets = this.themeService.getPresets();
+    this.settings.primary_color = this.themeService.loadStoredTheme();
     this.loadSettings();
   }
 
   loadSettings() {
     this.dataService.getSettings().subscribe(res => {
-      this.settings = { ...this.settings, ...res };
+      this.settings.google_sheet_url = res.google_sheet_url || '';
     });
   }
 
   saveSettings() {
     this.loading = true;
-    this.dataService.updateSettings(this.settings)
+    // Chỉ lưu các cấu hình cần thiết lên DB (như Google Sheet URL)
+    const dbSettings = {
+      google_sheet_url: this.settings.google_sheet_url
+    };
+    
+    this.dataService.updateSettings(dbSettings)
       .subscribe({
         next: () => {
           this.loading = false;
@@ -222,5 +494,23 @@ export class SettingsComponent implements OnInit {
           this.loading = false;
         }
       });
+  }
+
+  onColorChange() {
+    this.themeService.applyTheme(this.settings.primary_color);
+  }
+
+  applyPreset(color: string) {
+    this.settings.primary_color = color;
+    this.onColorChange();
+  }
+
+  getUserInitials(): string {
+    if (!this.currentUser?.name) return '??';
+    const parts = this.currentUser.name.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return this.currentUser.name.slice(0, 2).toUpperCase();
   }
 }

@@ -24,7 +24,7 @@ export class AuthService {
       tap(res => {
         if (res.token) {
           localStorage.setItem('token', res.token);
-          // localStorage.setItem('user', JSON.stringify(res.user));
+          localStorage.setItem('user', JSON.stringify(res.user));
           localStorage.setItem('isLoggedIn', 'true');
           this.loggedInSubject.next(true);
         }

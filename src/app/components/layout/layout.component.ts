@@ -57,11 +57,11 @@ import { AuthService } from '../../services/auth.service';
             <h1 class="page-title">{{ getCurrentPageName() }}</h1>
           </div>
           <div class="user-profile">
-            <div class="avatar">AD</div>
-            <span class="username">Admin</span>
+            <div class="avatar">{{ getUserInitials() }}</div>
+            <span class="username">{{ getUserName() }}</span>
           </div>
         </header>
-        
+
         <div class="content-area animate-fade-in">
           <router-outlet></router-outlet>
         </div>
@@ -307,6 +307,21 @@ export class LayoutComponent {
 
   onLogout() {
     this.authService.logout();
+  }
+
+  getUserName(): string {
+    const user = this.authService.getUser();
+    return user ? user.name : 'Unknown User';
+  }
+
+  getUserInitials(): string {
+    const name = this.getUserName();
+    if (!name) return '??';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
   }
 
   getCurrentPageName(): string {

@@ -208,6 +208,28 @@ export class DataService {
     );
   }
 
+  // Settings Methods
+  getSettings(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/settings`).pipe(
+      catchError(err => {
+        this.toast.error('Lỗi khi tải cấu hình');
+        return throwError(() => err);
+      })
+    );
+  }
+
+  updateSettings(settings: any): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/settings`, settings).pipe(
+      tap(() => {
+        this.toast.success('Đã cập nhật cấu hình hệ thống');
+      }),
+      catchError(err => {
+        this.toast.error('Lỗi khi lưu cấu hình');
+        return throwError(() => err);
+      })
+    );
+  }
+
   private updateCustomerCache(invoice: Invoice) {
     const current = this.customersSubject.value;
     const exists = current.find(c => c.phone === invoice.buyerPhone);

@@ -11,6 +11,13 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * 0. CẤU HÌNH ĐỒNG BỘ GOOGLE SHEET
+ * Lưu ý: Giá trị này hiện đã được chuyển vào Database (bảng gm_settings).
+ * Hằng số này chỉ còn dùng làm giá trị mặc định ban đầu.
+ */
+define('GM_DEFAULT_GSHEET_URL', 'https://script.google.com/macros/s/AKfycbzipcDn2PEREmi0fx7ceQZ4rAgeRUEbldkV-ZhCEg843U6cqRPdn3P8tDyfacMmfojB/exec'); 
+
+/**
  * 1. TẠO BẢNG KHI KÍCH HOẠT PLUGIN
  */
 register_activation_hook(__FILE__, 'gm_create_custom_tables');
@@ -79,11 +86,31 @@ function gm_create_custom_tables() {
         KEY invoice_id (invoice_id)
     ) $charset_collate;";
 
+    // Bảng Cài đặt [NEW]
+    $table_settings = $wpdb->prefix . 'gm_settings';
+    $sql_settings = "CREATE TABLE $table_settings (
+        setting_key varchar(100) NOT NULL,
+        setting_value text,
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY  (setting_key)
+    ) $charset_collate;";
+
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql_products);
     dbDelta($sql_invoices);
     dbDelta($sql_users);
     dbDelta($sql_items);
+    dbDelta($sql_settings);
+
+    // Khởi tạo giá trị mặc định nếu chưa có
+    $existing = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $table_settings WHERE setting_key = %s", 'google_sheet_url'));
+    if (!$existing) {
+        $wpdb->insert($table_settings, array(
+            'setting_key'   => 'google_sheet_url',
+            'setting_value' => GM_DEFAULT_GSHEET_URL
+        ));
+    }
 }
 
 /**
@@ -139,6 +166,20 @@ function gm_register_rest_routes() {
         array(
             'methods'  => 'POST',
             'callback' => 'gm_handle_create_product',
+            'permission_callback' => '__return_true'
+        )
+    ));
+
+    // Settings Endpoints
+    register_rest_route($namespace, '/settings', array(
+        array(
+            'methods'  => 'GET',
+            'callback' => 'gm_handle_get_settings',
+            'permission_callback' => '__return_true'
+        ),
+        array(
+            'methods'  => 'POST',
+            'callback' => 'gm_handle_save_settings',
             'permission_callback' => '__return_true'
         )
     ));
@@ -507,6 +548,28 @@ function gm_handle_create_invoice($request) {
             $wpdb->update($table_prod, array('sale' => 1), array('id' => $p_id));
         }
         
+        // 5. Đồng bộ Google Sheets (Nếu có URL)
+        $gsheet_url = gm_get_setting('google_sheet_url');
+        if (!empty($gsheet_url)) {
+            $product_names = array();
+            foreach ($products as $p) {
+                $name = $p['name'] ?? '';
+                $imei = $p['imei'] ?? 'N/A';
+                $color = $p['color'] ?? 'N/A';
+                $price = number_format($p['sellingPrice'] ?? 0, 0, ',', '.');
+                $product_names[] = "$name (IMEI: $imei, Màu: $color) - $price VNĐ";
+            }
+            $sync_data = array(
+                'id'           => $invoice_id,
+                'buyer_name'   => $params['buyerName'] ?? '',
+                'buyer_phone'  => $params['buyerPhone'] ?? '',
+                'amount_paid'  => (int)($params['amountPaid'] ?? 0),
+                'debt'         => (int)($params['debt'] ?? 0),
+                'product_summary' => implode(', ', $product_names)
+            );
+            gm_sync_to_google_sheet($sync_data);
+        }
+        
         $params['id'] = $invoice_id;
         return new WP_REST_Response(array('data' => $params, 'message' => 'Invoice created'), 201);
     }
@@ -634,6 +697,74 @@ function gm_handle_login($request) {
             'roles'    => $user->roles
         ]
     ], 200);
+}
+
+/**
+ * 6. SETTINGS HELPERS
+ */
+function gm_get_setting($key, $default = '') {
+    global $wpdb;
+    $table = $wpdb->prefix . 'gm_settings';
+    $value = $wpdb->get_var($wpdb->prepare("SELECT setting_value FROM $table WHERE setting_key = %s", $key));
+    return ($value !== null) ? $value : $default;
+}
+
+function gm_handle_get_settings() {
+    global $wpdb;
+    $table = $wpdb->prefix . 'gm_settings';
+    $results = $wpdb->get_results("SELECT setting_key as `key`, setting_value as `value` FROM $table");
+    
+    // Chuyển sang dạng object key-value cho dễ dùng ở frontend
+    $settings = array();
+    foreach ($results as $row) {
+        $settings[$row->key] = $row->value;
+    }
+    return new WP_REST_Response($settings, 200);
+}
+
+function gm_handle_save_settings($request) {
+    global $wpdb;
+    $table = $wpdb->prefix . 'gm_settings';
+    $params = $request->get_json_params();
+
+    foreach ($params as $key => $value) {
+        $wpdb->replace($table, array(
+            'setting_key'   => sanitize_text_field($key),
+            'setting_value' => sanitize_text_field($value)
+        ));
+    }
+
+    return new WP_REST_Response(array('message' => 'Settings updated'), 200);
+}
+
+/**
+ * 7. GOOGLE SHEET SYNC HELPER
+ */
+function gm_sync_to_google_sheet($invoice_data) {
+    $url = gm_get_setting('google_sheet_url');
+    if (empty($url)) return;
+
+    $body = array(
+        'invoice_id'   => $invoice_data['id'],
+        'date'         => current_time('mysql'),
+        'buyer_name'   => $invoice_data['buyer_name'],
+        'buyer_phone'  => $invoice_data['buyer_phone'],
+        'amount_paid'  => $invoice_data['amount_paid'],
+        'debt'         => $invoice_data['debt'],
+        'products'     => $invoice_data['product_summary']
+    );
+
+    wp_remote_post($url, array(
+        'method'      => 'POST',
+        'timeout'     => 1,      // Giảm thời gian chờ kết nối (vì không cần đợi phản hồi)
+        'redirection' => 5,
+        'httpversion' => '1.0',
+        'blocking'    => false,  // CHẾ ĐỘ BẤT ĐỒNG BỘ: Gửi xong là trả kết quả ngay, không đợi Google phản hồi
+        'headers'     => array('Content-Type' => 'application/json'),
+        'body'        => json_encode($body),
+        'cookies'     => array(),
+        'sslverify'   => false
+    ));
 }
 
 /**

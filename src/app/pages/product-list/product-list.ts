@@ -182,6 +182,7 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
       <app-invoice-confirm-modal
         *ngIf="showConfirmModal"
         [invoice]="tempInvoice"
+        [loading]="isSavingInvoice"
         (back)="onBackToForm()"
         (confirm)="onFinalSubmit()"
       ></app-invoice-confirm-modal>
@@ -520,6 +521,7 @@ export class ProductListComponent implements OnInit {
   showConfirmModal = false;
   selectedProductsForInvoice: Product[] = [];
   tempInvoice!: Invoice;
+  isSavingInvoice = false;
 
   private searchSubject = new Subject<string>();
   private searchSubscription?: Subscription;
@@ -730,14 +732,17 @@ export class ProductListComponent implements OnInit {
   }
 
   onFinalSubmit() {
+    this.isSavingInvoice = true;
     this.dataService.addInvoice(this.tempInvoice).subscribe({
       next: () => {
+        this.isSavingInvoice = false;
         this.showConfirmModal = false;
         this.selectedProductsMap.clear();
         this.fetchProducts(); // Refresh to reflect sales
         alert('Lập hóa đơn thành công!');
       },
       error: (err: any) => {
+        this.isSavingInvoice = false;
         console.error('Lỗi khi lưu hóa đơn:', err);
         alert('Có lỗi xảy ra khi lưu hóa đơn. Vui lòng thử lại.');
       }

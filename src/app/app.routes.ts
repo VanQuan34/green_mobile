@@ -25,6 +25,10 @@ export const routes: Routes = [
       { 
         path: 'debts', 
         loadComponent: () => import('./pages/debt-list/debt-list').then(m => m.DebtListComponent) 
+      },
+      { 
+        path: 'settings', 
+        loadComponent: () => import('./pages/settings/settings').then(m => m.SettingsComponent) 
       }
     ]
   },

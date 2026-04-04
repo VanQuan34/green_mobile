@@ -7,11 +7,11 @@ import { Invoice } from '../../models/data.models';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="modal-overlay animate-fade-in" (click)="onBack()">
+    <div class="modal-overlay animate-fade-in" (click)="!loading && onBack()">
       <div class="modal-content glass-card" (click)="$event.stopPropagation()">
         <header class="modal-header">
           <h3>Xác nhận lập hóa đơn</h3>
-          <button class="close-btn" (click)="onBack()">✕</button>
+          <button class="close-btn" (click)="onBack()" [disabled]="loading">✕</button>
         </header>
 
         <div class="modal-body">
@@ -59,9 +59,14 @@ import { Invoice } from '../../models/data.models';
         </div>
 
         <footer class="modal-footer">
-          <button class="btn btn-outline" (click)="onBack()">Quay lại sửa</button>
-          <button class="btn btn-primary" (click)="onConfirm()">
-            Xác nhận & Lưu hóa đơn
+          <button class="btn btn-outline" (click)="onBack()" [disabled]="loading">Quay lại sửa</button>
+          <button 
+            class="btn btn-primary btn-confirm" 
+            (click)="onConfirm()" 
+            [disabled]="loading"
+          >
+            <span *ngIf="loading" class="spinner-small"></span>
+            <span>{{ loading ? 'Đang lưu hóa đơn...' : 'Xác nhận & Lưu hóa đơn' }}</span>
           </button>
         </footer>
       </div>
@@ -122,7 +127,7 @@ import { Invoice } from '../../models/data.models';
       transition: all 0.2s;
     }
 
-    .close-btn:hover {
+    .close-btn:hover:not(:disabled) {
       background: var(--primary-light);
       color: var(--primary-dark);
       transform: rotate(90deg);
@@ -152,7 +157,7 @@ import { Invoice } from '../../models/data.models';
     .info-box {
       padding: 0.75rem;
       background: var(--bg-main);
-      border: 0.75rem;
+      border-radius: 0.75rem;
       border: 1px solid var(--border);
     }
 
@@ -217,6 +222,33 @@ import { Invoice } from '../../models/data.models';
       gap: 1rem;
     }
 
+    .btn-confirm {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 220px;
+      justify-content: center;
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .spinner-small {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top: 2px solid white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
     @media (max-width: 768px) {
       .modal-footer {
         flex-direction: column-reverse;
@@ -236,6 +268,7 @@ import { Invoice } from '../../models/data.models';
 })
 export class InvoiceConfirmModalComponent implements OnInit, OnDestroy {
   @Input() invoice!: Invoice;
+  @Input() loading: boolean = false;
   @Output() back = new EventEmitter<void>();
   @Output() confirm = new EventEmitter<void>();
 
@@ -250,10 +283,12 @@ export class InvoiceConfirmModalComponent implements OnInit, OnDestroy {
   }
 
   onBack() {
+    if (this.loading) return;
     this.back.emit();
   }
 
   onConfirm() {
+    if (this.loading) return;
     this.confirm.emit();
   }
 }

@@ -1,0 +1,370 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		2133A7C24E7238AB846414D0 /* ProductListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E89451DCBB1E1C98A7821E /* ProductListView.swift */; };
+		2F0A06783C2CFEAEBAA55F9E /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4682C92B101EFA4B197C71CD /* Theme.swift */; };
+		3EA01A265B819F0441A71545 /* DataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 431AB190B0F1987F09476F90 /* DataManager.swift */; };
+		4E1CB0BB906067613D272635 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7894C9185DEE8F3717DD20B7 /* SettingsView.swift */; };
+		8DF8FEE881CFDA4A3FD135C4 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 430B6845F83C6968B896FDA7 /* LoginView.swift */; };
+		9B6155A89B45E578F2D1DACD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9B97D73632B3773CB9CFCD63 /* Assets.xcassets */; };
+		9D532B08CA1E7B8520C3B554 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52AEF329A2D47F253EA5C7F2 /* MainTabView.swift */; };
+		AF0CBF444AE6A2E1941B0AE3 /* DataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DB718B7A83B9F609F1A9019 /* DataModels.swift */; };
+		B290259BA95B1D77EF7523C9 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 698F7B9F15325F608F9CF7E0 /* AuthManager.swift */; };
+		BBD2920344949A581DA3A5B8 /* GreenMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33A2A75628FE313DBDF8D953 /* GreenMobileApp.swift */; };
+		C1C561C3B281197BD61CCAE3 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26885246210BAC7D5E331638 /* DashboardView.swift */; };
+		C79886EBF17B2044C541EE41 /* InvoiceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BC67138BC5218BD3E45729 /* InvoiceListView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		26885246210BAC7D5E331638 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		33A2A75628FE313DBDF8D953 /* GreenMobileApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GreenMobileApp.swift; sourceTree = "<group>"; };
+		430B6845F83C6968B896FDA7 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		431AB190B0F1987F09476F90 /* DataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataManager.swift; sourceTree = "<group>"; };
+		4682C92B101EFA4B197C71CD /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		52AEF329A2D47F253EA5C7F2 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		698F7B9F15325F608F9CF7E0 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		7894C9185DEE8F3717DD20B7 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		7B0553DBF53517D823BC3771 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		8DB718B7A83B9F609F1A9019 /* DataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataModels.swift; sourceTree = "<group>"; };
+		9B97D73632B3773CB9CFCD63 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		D00B7C34DC84F778D887A91A /* GreenMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GreenMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D4E89451DCBB1E1C98A7821E /* ProductListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductListView.swift; sourceTree = "<group>"; };
+		D5BC67138BC5218BD3E45729 /* InvoiceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceListView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		1B9235DD61B309701B6DEE54 /* GreenMobile */ = {
+			isa = PBXGroup;
+			children = (
+				9B97D73632B3773CB9CFCD63 /* Assets.xcassets */,
+				33A2A75628FE313DBDF8D953 /* GreenMobileApp.swift */,
+				7B0553DBF53517D823BC3771 /* Info.plist */,
+				4682C92B101EFA4B197C71CD /* Theme.swift */,
+				FB335B35C8EABA2FE932F35A /* Models */,
+				5C8428618CFFEC57E975C3FD /* Services */,
+				258F4E7EACE598344B829A64 /* Views */,
+			);
+			name = GreenMobile;
+			path = Sources/GreenMobile;
+			sourceTree = "<group>";
+		};
+		258F4E7EACE598344B829A64 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				26885246210BAC7D5E331638 /* DashboardView.swift */,
+				D5BC67138BC5218BD3E45729 /* InvoiceListView.swift */,
+				430B6845F83C6968B896FDA7 /* LoginView.swift */,
+				52AEF329A2D47F253EA5C7F2 /* MainTabView.swift */,
+				D4E89451DCBB1E1C98A7821E /* ProductListView.swift */,
+				7894C9185DEE8F3717DD20B7 /* SettingsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		5C8428618CFFEC57E975C3FD /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				698F7B9F15325F608F9CF7E0 /* AuthManager.swift */,
+				431AB190B0F1987F09476F90 /* DataManager.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		AB0C92F9CB25FC7762161165 = {
+			isa = PBXGroup;
+			children = (
+				1B9235DD61B309701B6DEE54 /* GreenMobile */,
+				EEF487CEA842972579D2C1EE /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		EEF487CEA842972579D2C1EE /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D00B7C34DC84F778D887A91A /* GreenMobile.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FB335B35C8EABA2FE932F35A /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				8DB718B7A83B9F609F1A9019 /* DataModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		FFDC42B03150E9C0F73A6716 /* GreenMobile */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 20A4F69C734A8427F2E21C59 /* Build configuration list for PBXNativeTarget "GreenMobile" */;
+			buildPhases = (
+				E99A8205F057F0C13BD416B7 /* Sources */,
+				64BF74A9266F82ADD195FC05 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GreenMobile;
+			packageProductDependencies = (
+			);
+			productName = GreenMobile;
+			productReference = D00B7C34DC84F778D887A91A /* GreenMobile.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		86D9EE427B2638A935F1F981 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+			};
+			buildConfigurationList = 00CA16C6DD19081284BDC767 /* Build configuration list for PBXProject "GreenMobile" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = AB0C92F9CB25FC7762161165;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = EEF487CEA842972579D2C1EE /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				FFDC42B03150E9C0F73A6716 /* GreenMobile */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		64BF74A9266F82ADD195FC05 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9B6155A89B45E578F2D1DACD /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		E99A8205F057F0C13BD416B7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B290259BA95B1D77EF7523C9 /* AuthManager.swift in Sources */,
+				C1C561C3B281197BD61CCAE3 /* DashboardView.swift in Sources */,
+				3EA01A265B819F0441A71545 /* DataManager.swift in Sources */,
+				AF0CBF444AE6A2E1941B0AE3 /* DataModels.swift in Sources */,
+				BBD2920344949A581DA3A5B8 /* GreenMobileApp.swift in Sources */,
+				C79886EBF17B2044C541EE41 /* InvoiceListView.swift in Sources */,
+				8DF8FEE881CFDA4A3FD135C4 /* LoginView.swift in Sources */,
+				9D532B08CA1E7B8520C3B554 /* MainTabView.swift in Sources */,
+				2133A7C24E7238AB846414D0 /* ProductListView.swift in Sources */,
+				4E1CB0BB906067613D272635 /* SettingsView.swift in Sources */,
+				2F0A06783C2CFEAEBAA55F9E /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		73E373C0293CBD3A212307C2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = Z532W7ANP2;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Sources/GreenMobile/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.reactnative.app;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.1;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		84CAAD93439A703C48F90CEB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		C40642285E71C09535B4A10F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		CAFFD8B9DBF5D9B139DB8F7A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = Z532W7ANP2;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Sources/GreenMobile/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.reactnative.app;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.1;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		00CA16C6DD19081284BDC767 /* Build configuration list for PBXProject "GreenMobile" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				84CAAD93439A703C48F90CEB /* Debug */,
+				C40642285E71C09535B4A10F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		20A4F69C734A8427F2E21C59 /* Build configuration list for PBXNativeTarget "GreenMobile" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CAFFD8B9DBF5D9B139DB8F7A /* Debug */,
+				73E373C0293CBD3A212307C2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 86D9EE427B2638A935F1F981 /* Project object */;
+}

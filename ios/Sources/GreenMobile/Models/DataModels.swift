@@ -42,6 +42,19 @@ struct Product: Codable, Identifiable {
         self.sellingPrice = try? container.decode(Int.self, forKey: .sellingPrice)
         self.sale = try? container.decode(Bool.self, forKey: .sale)
     }
+    
+    // Custom init for creating new products
+    init(name: String, imei: String, color: String, capacity: String, status: String, originalPrice: Int, sellingPrice: Int) {
+        self.id = "" // Server will generate this
+        self.name = name
+        self.imei = imei
+        self.color = color
+        self.capacity = capacity
+        self.status = status
+        self.originalPrice = originalPrice
+        self.sellingPrice = sellingPrice
+        self.sale = false
+    }
 }
 
 extension Int {

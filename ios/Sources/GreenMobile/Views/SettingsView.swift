@@ -4,7 +4,6 @@ struct SettingsView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var notificationsEnabled = true
     @State private var darkModeEnabled = false
-    @State private var apiUrl = "https://quantv.store/wp-json/gm/v1"
     
     var body: some View {
         NavigationView {
@@ -32,7 +31,7 @@ struct SettingsView: View {
                     HStack {
                         Text("API URL")
                         Spacer()
-                        Text(apiUrl)
+                        Text(AppConfig.apiUrl)
                             .font(.caption)
                             .foregroundColor(.blue)
                     }

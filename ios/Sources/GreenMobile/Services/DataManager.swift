@@ -26,7 +26,6 @@ class DataManager: ObservableObject {
     
     private var productsPage: Int = 1
     private let productsPerPage = 15
-    private let apiUrl = "https://quantv.store/wp-json/gm/v1"
     private var cancellables = Set<AnyCancellable>()
     
     private init() {}
@@ -60,7 +59,7 @@ class DataManager: ObservableObject {
             DispatchQueue.main.async { self.isLoading = true }
         }
         
-        let urlString = "\(apiUrl)/products?page=\(page)&per_page=\(productsPerPage)\(search != nil && !search!.isEmpty ? "&search=\(search!.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")" : "")"
+        let urlString = "\(AppConfig.apiUrl)/products?page=\(page)&per_page=\(productsPerPage)\(search != nil && !search!.isEmpty ? "&search=\(search!.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")" : "")"
         
         guard let url = URL(string: urlString) else {
             DispatchQueue.main.async {
@@ -88,7 +87,7 @@ class DataManager: ObservableObject {
     }
     
     func fetchInvoices() async {
-        guard let url = URL(string: "\(apiUrl)/invoices") else { return }
+        guard let url = URL(string: "\(AppConfig.apiUrl)/invoices") else { return }
         await performFetch(url: url) { (data: [Invoice]) in
             DispatchQueue.main.async { 
                 self.invoices = data
@@ -98,7 +97,7 @@ class DataManager: ObservableObject {
     }
     
     func fetchCustomers() async {
-        guard let url = URL(string: "\(apiUrl)/customers") else { return }
+        guard let url = URL(string: "\(AppConfig.apiUrl)/customers") else { return }
         await performFetch(url: url) { (data: [Customer]) in
             DispatchQueue.main.async { self.customers = data }
         }
@@ -160,8 +159,35 @@ class DataManager: ObservableObject {
         }
     }
     
+    func addProduct(_ product: Product) async throws {
+        guard let url = URL(string: "\(AppConfig.apiUrl)/products") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        if let token = UserDefaults.standard.string(forKey: "token") {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        // We use the product itself since it matches the API structure
+        request.httpBody = try JSONEncoder().encode(product)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse {
+            if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
+                await fetchProducts(page: 1) // Refresh list
+            } else {
+                if let errorJson = String(data: data, encoding: .utf8) {
+                    print("DataManager Error: Add Product failed (\(httpResponse.statusCode)): \(errorJson)")
+                }
+                throw AppError.loginFailed(message: "Không thể lưu sản phẩm. Máy chủ trả về lỗi \(httpResponse.statusCode).")
+            }
+        }
+    }
+    
     func addInvoice(_ invoice: Invoice) async throws {
-        guard let url = URL(string: "\(apiUrl)/invoices") else { return }
+        guard let url = URL(string: "\(AppConfig.apiUrl)/invoices") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

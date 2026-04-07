@@ -11,12 +11,14 @@
 		2F0A06783C2CFEAEBAA55F9E /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4682C92B101EFA4B197C71CD /* Theme.swift */; };
 		3EA01A265B819F0441A71545 /* DataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 431AB190B0F1987F09476F90 /* DataManager.swift */; };
 		4E1CB0BB906067613D272635 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7894C9185DEE8F3717DD20B7 /* SettingsView.swift */; };
+		70041E5F589423618A508BD2 /* AddProductFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97EE34915CFB6B3C20FAF132 /* AddProductFormView.swift */; };
 		8DF8FEE881CFDA4A3FD135C4 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 430B6845F83C6968B896FDA7 /* LoginView.swift */; };
 		9B6155A89B45E578F2D1DACD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9B97D73632B3773CB9CFCD63 /* Assets.xcassets */; };
 		9D532B08CA1E7B8520C3B554 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52AEF329A2D47F253EA5C7F2 /* MainTabView.swift */; };
 		AF0CBF444AE6A2E1941B0AE3 /* DataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DB718B7A83B9F609F1A9019 /* DataModels.swift */; };
 		B290259BA95B1D77EF7523C9 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 698F7B9F15325F608F9CF7E0 /* AuthManager.swift */; };
 		BBD2920344949A581DA3A5B8 /* GreenMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33A2A75628FE313DBDF8D953 /* GreenMobileApp.swift */; };
+		C1A604C7DB169DE54CA26B7E /* Config.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ED0508397B24ECD068CA109 /* Config.swift */; };
 		C1C561C3B281197BD61CCAE3 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26885246210BAC7D5E331638 /* DashboardView.swift */; };
 		C79886EBF17B2044C541EE41 /* InvoiceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BC67138BC5218BD3E45729 /* InvoiceListView.swift */; };
 /* End PBXBuildFile section */
@@ -29,9 +31,11 @@
 		4682C92B101EFA4B197C71CD /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		52AEF329A2D47F253EA5C7F2 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		698F7B9F15325F608F9CF7E0 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		6ED0508397B24ECD068CA109 /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
 		7894C9185DEE8F3717DD20B7 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		7B0553DBF53517D823BC3771 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8DB718B7A83B9F609F1A9019 /* DataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataModels.swift; sourceTree = "<group>"; };
+		97EE34915CFB6B3C20FAF132 /* AddProductFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProductFormView.swift; sourceTree = "<group>"; };
 		9B97D73632B3773CB9CFCD63 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D00B7C34DC84F778D887A91A /* GreenMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GreenMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D4E89451DCBB1E1C98A7821E /* ProductListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductListView.swift; sourceTree = "<group>"; };
@@ -43,6 +47,7 @@
 			isa = PBXGroup;
 			children = (
 				9B97D73632B3773CB9CFCD63 /* Assets.xcassets */,
+				6ED0508397B24ECD068CA109 /* Config.swift */,
 				33A2A75628FE313DBDF8D953 /* GreenMobileApp.swift */,
 				7B0553DBF53517D823BC3771 /* Info.plist */,
 				4682C92B101EFA4B197C71CD /* Theme.swift */,
@@ -57,6 +62,7 @@
 		258F4E7EACE598344B829A64 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				97EE34915CFB6B3C20FAF132 /* AddProductFormView.swift */,
 				26885246210BAC7D5E331638 /* DashboardView.swift */,
 				D5BC67138BC5218BD3E45729 /* InvoiceListView.swift */,
 				430B6845F83C6968B896FDA7 /* LoginView.swift */,
@@ -165,7 +171,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				70041E5F589423618A508BD2 /* AddProductFormView.swift in Sources */,
 				B290259BA95B1D77EF7523C9 /* AuthManager.swift in Sources */,
+				C1A604C7DB169DE54CA26B7E /* Config.swift in Sources */,
 				C1C561C3B281197BD61CCAE3 /* DashboardView.swift in Sources */,
 				3EA01A265B819F0441A71545 /* DataManager.swift in Sources */,
 				AF0CBF444AE6A2E1941B0AE3 /* DataModels.swift in Sources */,

@@ -94,7 +94,7 @@ struct ProductListView: View {
                 }
             }
             .sheet(isPresented: $isShowingAddProduct) {
-                Text("Form thêm sản phẩm")
+                AddProductFormView()
             }
             .overlay {
                 if dataManager.isLoading && dataManager.products.isEmpty {

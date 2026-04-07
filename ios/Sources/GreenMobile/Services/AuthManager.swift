@@ -8,7 +8,6 @@ class AuthManager: ObservableObject {
     @Published var isLoggedIn: Bool = false
     @Published var user: User?
     
-    private let apiUrl = "https://quantv.store/wp-json/gm/v1"
     private var cancellables = Set<AnyCancellable>()
     
     private init() {
@@ -19,7 +18,7 @@ class AuthManager: ObservableObject {
     }
     
     func login(username: String, password: String) async throws {
-        guard let url = URL(string: "\(apiUrl)/login") else { return }
+        guard let url = URL(string: "\(AppConfig.apiUrl)/login") else { return }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"

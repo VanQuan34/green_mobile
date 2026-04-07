@@ -26,11 +26,12 @@ import * as XLSX from 'xlsx';
         </div>
         <div class="header-actions">
           <div class="sort-controls glass-card">
-            <label>Sắp xếp theo nợ:</label>
+            <label>Sắp xếp:</label>
             <select [(ngModel)]="sortOrder" (change)="onFilterChange()">
-              <option value="desc">Nợ cao → thấp</option>
-              <option value="asc">Nợ thấp → cao</option>
-              <option value="none">Mặc định (Mới nhất)</option>
+              <option value="date_desc">Mới nhất (Mặc định)</option>
+              <option value="date_asc">Cũ nhất</option>
+              <option value="debt_desc">Nợ cao → thấp</option>
+              <option value="debt_asc">Nợ thấp → cao</option>
             </select>
           </div>
 
@@ -39,6 +40,22 @@ import * as XLSX from 'xlsx';
             <span class="btn-text">Xuất Excel</span>
           </button>
         </div>
+      </div>
+
+      <!-- Tab Navigation -->
+      <div class="tabs-container glass-card">
+        <button class="tab-item" [class.active]="activeTab === 'all'" (click)="setTab('all')">
+          <span class="tab-icon">📄</span> Tất cả
+          <span class="tab-count">{{ invoices.length }}</span>
+        </button>
+        <button class="tab-item" [class.active]="activeTab === 'paid'" (click)="setTab('paid')">
+          <span class="tab-icon">✅</span> Đã thanh toán
+          <span class="tab-count">{{ getPaidCount() }}</span>
+        </button>
+        <button class="tab-item" [class.active]="activeTab === 'debt'" (click)="setTab('debt')">
+          <span class="tab-icon">⏳</span> Còn nợ
+          <span class="tab-count">{{ getDebtCount() }}</span>
+        </button>
       </div>
 
       <div class="table-container glass-card">
@@ -68,21 +85,21 @@ import * as XLSX from 'xlsx';
                   <ng-container *ngIf="invoice.products && invoice.products.length > 0; else legacyProduct">
                     <div class="p-item-tag" *ngFor="let p of invoice.products">
                       <span class="p-name">{{ p.name }}</span>
-                      <span class="p-price text-muted">{{ p.sellingPrice | number }}đ</span>
+                      <span class="p-price text-muted">{{ (p.sellingPrice || 0) | number }}đ</span>
                     </div>
                   </ng-container>
                   <ng-template #legacyProduct>
                     <div class="p-item-tag">
                       <span class="p-name">{{ invoice.productName }}</span>
-                      <span class="p-price text-muted">{{ invoice.productPrice | number }}đ</span>
+                      <span class="p-price text-muted">{{ (invoice.productPrice || 0) | number }}đ</span>
                     </div>
                   </ng-template>
                 </div>
               </td>
-              <td class="font-bold">{{ invoice.amountPaid | number }}đ</td>
+              <td class="font-bold">{{ (invoice.amountPaid || 0) | number }}đ</td>
               <td>
                 <span class="debt-amount" [class.has-debt]="invoice.debt > 0">
-                  {{ invoice.debt | number }}đ
+                  {{ (invoice.debt || 0) | number }}đ
                 </span>
               </td>
               <td class="text-muted">{{ invoice.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
@@ -97,11 +114,11 @@ import * as XLSX from 'xlsx';
                 </div>
               </td>
             </tr>
-            <tr *ngIf="invoices.length === 0">
+            <tr *ngIf="filteredInvoices.length === 0">
               <td colspan="6" class="empty-state">
                 <div class="empty-msg">
                   <span>📄</span>
-                  <p>Chưa có hóa đơn nào được lập.</p>
+                  <p>Không có hóa đơn nào phù hợp với bộ lọc.</p>
                 </div>
               </td>
             </tr>
@@ -135,7 +152,7 @@ import * as XLSX from 'xlsx';
     .invoice-page {
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      gap: 1rem;
     }
 
     .list-header {
@@ -167,6 +184,63 @@ import * as XLSX from 'xlsx';
       outline: none;
       font-size: 0.95rem;
       color: var(--text-main);
+    }
+
+    /* Tabs Style */
+    .tabs-container {
+      display: flex;
+      padding: 0.5rem;
+      gap: 0.5rem;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 12px;
+    }
+
+    .tab-item {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-weight: 500;
+      transition: all 0.2s ease;
+      font-size: 0.9rem;
+    }
+
+    .tab-item:hover {
+      background: rgba(255, 255, 255, 0.8);
+      color: var(--text-main);
+    }
+
+    .tab-item.active {
+      background: var(--primary);
+      color: white;
+      box-shadow: var(--shadow-lg);
+      font-weight: 700;
+    }
+
+    .tab-count {
+      background: rgba(0, 0, 0, 0.05);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .tab-item.active .tab-count {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+
+    @media (max-width: 600px) {
+      .tabs-container {
+        flex-direction: column;
+      }
     }
 
     .sort-controls {
@@ -236,8 +310,7 @@ import * as XLSX from 'xlsx';
     }
 
     .clickable-row:hover td {
-      background-color: #f1f5f9 !important;
-      transform: translateY(-1px);
+      background-color: rgba(0,0,0,0.02) !important;
     }
     
     .customer-info, .product-info {
@@ -344,7 +417,8 @@ export class InvoiceListComponent implements OnInit {
   invoices: Invoice[] = [];
   filteredInvoices: Invoice[] = [];
   searchQuery: string = '';
-  sortOrder: 'asc' | 'desc' | 'none' = 'desc'; // Mặc định nợ cao -> thấp
+  activeTab: 'all' | 'paid' | 'debt' = 'all';
+  sortOrder: 'date_asc' | 'date_desc' | 'debt_asc' | 'debt_desc' = 'date_desc';
   selectedInvoice: Invoice | null = null;
   editingInvoice: Invoice | null = null;
   showExportModal: boolean = false;
@@ -358,10 +432,30 @@ export class InvoiceListComponent implements OnInit {
     });
   }
 
+  setTab(tab: 'all' | 'paid' | 'debt') {
+    this.activeTab = tab;
+    this.onFilterChange();
+  }
+
+  getPaidCount() {
+    return this.invoices.filter(i => i.isFullyPaid).length;
+  }
+
+  getDebtCount() {
+    return this.invoices.filter(i => !i.isFullyPaid).length;
+  }
+
   onFilterChange() {
     let result = [...this.invoices];
     
-    // 1. Tìm kiếm
+    // 1. Phân loại theo TAB
+    if (this.activeTab === 'paid') {
+      result = result.filter(inv => inv.isFullyPaid);
+    } else if (this.activeTab === 'debt') {
+      result = result.filter(inv => !inv.isFullyPaid);
+    }
+
+    // 2. Tìm kiếm
     if (this.searchQuery) {
       const q = this.searchQuery.toLowerCase();
       result = result.filter(inv => 
@@ -372,10 +466,14 @@ export class InvoiceListComponent implements OnInit {
       );
     }
     
-    // 2. Sắp xếp theo nợ
-    if (this.sortOrder === 'desc') {
+    // 3. Sắp xếp
+    if (this.sortOrder === 'date_desc') {
+      result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else if (this.sortOrder === 'date_asc') {
+      result.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    } else if (this.sortOrder === 'debt_desc') {
       result.sort((a, b) => b.debt - a.debt);
-    } else if (this.sortOrder === 'asc') {
+    } else if (this.sortOrder === 'debt_asc') {
       result.sort((a, b) => a.debt - b.debt);
     }
     
@@ -399,7 +497,6 @@ export class InvoiceListComponent implements OnInit {
   deleteInvoice(id: string) {
     if (confirm('Bạn có chắc chắn muốn xóa hóa đơn này?')) {
       this.dataService.deleteInvoice(id).subscribe(() => {
-        // DataService reload automagically updates subject
       });
     }
   }

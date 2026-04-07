@@ -1,0 +1,83 @@
+<div class="modal-overlay" (click)="closeModal()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="modal-header">
+      <h3>
+        <i class="ri-image-2-line"></i>
+        Thư viện Media
+      </h3>
+      <button class="close-btn" (click)="closeModal()">
+        <i class="ri-close-line"></i>
+      </button>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="modal-toolbar">
+      <div class="search-box">
+        <i class="ri-search-line"></i>
+        <input type="text" 
+               [(ngModel)]="searchQuery" 
+               (input)="onSearchChange()" 
+               placeholder="Tìm kiếm hình ảnh...">
+      </div>
+
+      <div class="filters">
+        <div class="view-toggle">
+          <button [class.active]="viewMode === 'grid'" (click)="viewMode = 'grid'" title="Lưới">
+            <i class="ri-grid-fill"></i>
+          </button>
+          <button [class.active]="viewMode === 'list'" (click)="viewMode = 'list'" title="Danh sách">
+            <i class="ri-list-check"></i>
+          </button>
+        </div>
+
+        <select (change)="onOrderChange($event)" [value]="orderBy">
+          <option value="DESC">Mới nhất</option>
+          <option value="ASC">Cũ nhất</option>
+        </select>
+
+        <label class="upload-btn" [class.disabled]="uploading">
+          <i *ngIf="!uploading" class="ri-upload-cloud-2-line"></i>
+          <span *ngIf="uploading" class="loader-sm"></span>
+          {{ uploading ? 'Tải...' : 'Tải lên' }}
+          <input type="file" (change)="onFileSelected($event)" accept="image/*" hidden>
+        </label>
+      </div>
+    </div>
+
+    <!-- Content Area -->
+    <div class="modal-content custom-scrollbar" (scroll)="onScroll($event)">
+      <div *ngIf="loading && mediaList.length === 0" class="empty-state">
+        <span class="loader"></span>
+        <p>Đang tải dữ liệu...</p>
+      </div>
+
+      <div *ngIf="!loading && mediaList.length === 0" class="empty-state">
+        <i class="ri-image-line"></i>
+        <p>Không tìm thấy hình ảnh nào.</p>
+      </div>
+
+      <div class="media-container" [class.grid-view]="viewMode === 'grid'" [class.list-view]="viewMode === 'list'">
+        <div *ngFor="let item of mediaList" class="media-item" (click)="selectImage(item.url)">
+          <div class="image-wrapper">
+            <img [src]="item.thumbnail" [alt]="item.name" loading="lazy">
+            <div class="selection-overlay">
+              <i class="ri-checkbox-circle-fill"></i>
+              <span>Chọn ảnh</span>
+            </div>
+          </div>
+          <div class="item-info">
+            <span class="item-name" [title]="item.name">{{ item.name }}</span>
+            <span class="item-date" *ngIf="viewMode === 'list'">{{ item.date | date:'dd/MM/yyyy HH:mm' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Infinite Loading Spinner -->
+      <div *ngIf="loading && mediaList.length > 0" class="infinite-loader">
+        <span class="loader-sm"></span>
+        <span>Đang tải thêm...</span>
+      </div>
+    </div>
+  </div>
+</div>

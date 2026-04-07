@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, map, of, tap, catchError, throwError, finalize } from 'rxjs';
-import { Product, Invoice } from '../models/data.models';
+import { Product, Invoice, MediaItem } from '../models/data.models';
 import { HttpClient } from '@angular/common/http';
 import { ToastService } from './toast.service';
 
@@ -55,7 +55,7 @@ export class DataService {
   getProductsPaginated(page: number, perPage: number, search?: string): Observable<{ products: Product[], total: number }> {
     let params: any = { page, per_page: perPage };
     if (search) params.search = search;
-    
+
     return this.http.get<Product[]>(`${this.apiUrl}/products`, {
       params,
       observe: 'response'
@@ -114,7 +114,7 @@ export class DataService {
     const cleanId = id.toString().trim();
     const deleteUrl = `${this.apiUrl}/products/${encodeURIComponent(cleanId)}`;
     console.log('DataService: URL xóa:', deleteUrl);
-    
+
     return this.http.delete(deleteUrl).pipe(
       tap(() => {
         console.log('DataService: API xóa thành công, đang cập nhật danh sách local...');
@@ -322,5 +322,41 @@ export class DataService {
     }
 
     return res.charAt(0).toUpperCase() + res.slice(1).trim() + ' đồng';
+  }
+
+  // Media Methods
+  getMedia(page: number, perPage: number, search?: string, order: 'DESC' | 'ASC' = 'DESC'): Observable<{ media: MediaItem[], total: number }> {
+    let params: any = { page, per_page: perPage, order };
+    if (search) params.search = search;
+
+    return this.http.get<MediaItem[]>(`${this.apiUrl}/media`, {
+      params,
+      observe: 'response'
+    }).pipe(
+      map(response => {
+        const total = parseInt(response.headers.get('X-WP-Total') || '0', 10);
+        return {
+          media: response.body || [],
+          total
+        };
+      }),
+      catchError(err => {
+        this.toast.error('Lỗi khi tải thư viện ảnh');
+        return throwError(() => err);
+      })
+    );
+  }
+
+  uploadMedia(file: File): Observable<MediaItem> {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    return this.http.post<MediaItem>(`${this.apiUrl}/media`, formData).pipe(
+      tap(() => this.toast.success('Tải ảnh lên thành công')),
+      catchError(err => {
+        this.toast.error('Lỗi khi tải ảnh lên');
+        return throwError(() => err);
+      })
+    );
   }
 }

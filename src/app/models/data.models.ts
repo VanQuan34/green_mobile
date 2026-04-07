@@ -35,3 +35,12 @@ export interface Invoice {
   isFullyPaid: boolean;
   createdAt: Date;
 }
+
+export interface MediaItem {
+  id: string;
+  url: string;
+  thumbnail: string;
+  name: string;
+  date: string;
+}
+

@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Product } from '../../models/data.models';
 import { DataService } from '../../services/data.service';
+import { MediaStoreComponent } from '../media-store/media-store.component';
 
 @Component({
   selector: 'app-product-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MediaStoreComponent],
   template: `
     <div class="modal-overlay animate-fade-in">
       <div class="modal-content glass-card">
@@ -43,11 +44,18 @@ import { DataService } from '../../services/data.service';
             </div>
 
             <div class="form-group">
-              <label>Link ảnh sản phẩm (URL)</label>
+              <label>Hình ảnh sản phẩm</label>
               <div class="img-input-container">
-                <input type="text" [(ngModel)]="product.image" name="image" placeholder="https://...">
+                <div class="img-input-wrapper">
+                  <input type="text" [(ngModel)]="product.image" name="image" placeholder="Nhập URL hoặc chọn từ thư viện...">
+                  <button type="button" class="btn-select-media" (click)="showMediaStore = true">
+                    <i class="ri-image-add-line"></i>
+                    Thư viện
+                  </button>
+                </div>
                 <div class="img-preview" *ngIf="product.image">
                   <img [src]="product.image" alt="preview">
+                  <button type="button" class="remove-img" (click)="product.image = ''">✕</button>
                 </div>
               </div>
             </div>
@@ -101,6 +109,13 @@ import { DataService } from '../../services/data.service';
           </button>
         </footer>
       </div>
+
+      <!-- Media Store Modal -->
+      <app-media-store
+        *ngIf="showMediaStore"
+        (select)="onMediaSelect($event)"
+        (close)="showMediaStore = false"
+      ></app-media-store>
     </div>
   `,
   styles: [`
@@ -204,17 +219,66 @@ import { DataService } from '../../services/data.service';
     
     .img-input-container {
       display: flex;
+      flex-direction: column;
       gap: 1rem;
+    }
+
+    .img-input-wrapper {
+      display: flex;
+      gap: 0.5rem;
+      width: 100%;
+    }
+
+    .img-input-wrapper input {
+      flex: 1;
+    }
+
+    .btn-select-media {
+      background: var(--bg-main);
+      border: 1px solid var(--border);
+      padding: 0 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
       align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: var(--text-main);
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-select-media:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-light);
     }
     
     .img-preview {
-      width: 50px;
-      height: 50px;
-      border-radius: 8px;
+      position: relative;
+      width: 100px;
+      height: 100px;
+      border-radius: 12px;
       overflow: hidden;
-      border: 1px solid var(--border);
-      flex-shrink: 0;
+      border: 2px solid var(--border);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .remove-img {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(231, 76, 60, 0.9);
+      color: white;
+      border: none;
+      font-size: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     
     .img-preview img {
@@ -295,6 +359,8 @@ export class ProductModalComponent implements OnInit, OnDestroy {
   @Input() loading = false;
   @Output() close = new EventEmitter<void>();
   @Output() save = new EventEmitter<Product>();
+  
+  showMediaStore = false;
 
   capacities = ['16GB', '32GB', '64GB', '128GB', '256GB', '512GB', '1TB', '2TB'];
 
@@ -340,5 +406,10 @@ export class ProductModalComponent implements OnInit, OnDestroy {
 
   onSave() {
     this.save.emit(this.product);
+  }
+
+  onMediaSelect(url: string) {
+    this.product.image = url;
+    this.showMediaStore = false;
   }
 }

@@ -237,6 +237,20 @@ function gm_register_rest_routes() {
         'callback' => 'gm_handle_get_customers',
         'permission_callback' => '__return_true'
     ));
+
+    // Media Endpoints
+    register_rest_route($namespace, '/media', array(
+        array(
+            'methods'  => 'GET',
+            'callback' => 'gm_handle_get_media',
+            'permission_callback' => '__return_true'
+        ),
+        array(
+            'methods'  => 'POST',
+            'callback' => 'gm_handle_upload_image',
+            'permission_callback' => '__return_true'
+        )
+    ));
 }
 
 /**
@@ -637,6 +651,74 @@ function gm_handle_get_customers() {
     $table = $wpdb->prefix . 'gm_users';
     $results = $wpdb->get_results("SELECT name, phone, address FROM $table ORDER BY name ASC");
     return new WP_REST_Response($results, 200);
+}
+
+/**
+ * 4. CALLBACK FUNCTIONS - MEDIA
+ */
+function gm_handle_get_media($request) {
+    $per_page = (int)($request->get_param('per_page') ?: 20);
+    $page = (int)($request->get_param('page') ?: 1);
+
+    $args = array(
+        'post_type'      => 'attachment',
+        'post_mime_type' => 'image',
+        'post_status'    => 'inherit',
+        'posts_per_page' => $per_page,
+        'paged'          => $page,
+        'orderby'        => 'date',
+        'order'          => 'DESC'
+    );
+
+    $query = new WP_Query($args);
+    $posts = $query->posts;
+
+    $media = array();
+    foreach ($posts as $post) {
+        $full_url = wp_get_attachment_url($post->ID);
+        // Lấy thêm thumbnail nếu có
+        $thumb_url = wp_get_attachment_image_url($post->ID, 'thumbnail');
+        
+        $media[] = array(
+            'id'    => (string)$post->ID,
+            'url'   => $full_url,
+            'thumbnail' => $thumb_url ?: $full_url,
+            'name'  => $post->post_title,
+            'date'  => $post->post_date
+        );
+    }
+
+    $response = new WP_REST_Response($media, 200);
+    $response->header('X-WP-Total', (int)$query->found_posts);
+    $response->header('X-WP-TotalPages', (int)$query->max_num_pages);
+
+    return $response;
+}
+
+function gm_handle_upload_image($request) {
+    if (empty($_FILES['image'])) {
+        return new WP_Error('no_file', 'Không tìm thấy tệp tin.', array('status' => 400));
+    }
+
+    // Yêu cầu các file cần thiết của WordPress để xử lý upload
+    require_once(ABSPATH . 'wp-admin/includes/image.php');
+    require_once(ABSPATH . 'wp-admin/includes/file.php');
+    require_once(ABSPATH . 'wp-admin/includes/media.php');
+
+    // 'image' là tên của field trong multipart form
+    $attachment_id = media_handle_upload('image', 0);
+
+    if (is_wp_error($attachment_id)) {
+        return new WP_Error('upload_error', $attachment_id->get_error_message(), array('status' => 500));
+    }
+
+    $url = wp_get_attachment_url($attachment_id);
+    
+    return new WP_REST_Response(array(
+        'id'      => (string)$attachment_id,
+        'url'     => $url,
+        'message' => 'Tải lên thành công.'
+    ), 200);
 }
 
 /**

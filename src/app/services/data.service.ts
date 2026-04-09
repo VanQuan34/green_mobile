@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, map, of, tap, catchError, throwError, finalize } from 'rxjs';
-import { Product, Invoice, MediaItem } from '../models/data.models';
+import { Product, Invoice, MediaItem, DashboardStats, Customer } from '../models/data.models';
 import { HttpClient } from '@angular/common/http';
 import { ToastService } from './toast.service';
 
@@ -14,13 +14,15 @@ export class DataService {
 
   private productsSubject = new BehaviorSubject<Product[]>([]);
   private invoicesSubject = new BehaviorSubject<Invoice[]>([]);
-  private customersSubject = new BehaviorSubject<any[]>([]);
+  private customersSubject = new BehaviorSubject<Customer[]>([]);
+  private statsSubject = new BehaviorSubject<DashboardStats | null>(null);
 
   customers$ = this.customersSubject.asObservable();
   products$ = this.productsSubject.asObservable().pipe(
     map(list => list.filter(p => !p.sale))
   );
   invoices$ = this.invoicesSubject.asObservable();
+  stats$ = this.statsSubject.asObservable();
 
   constructor() {
     this.loadInitialData();
@@ -42,9 +44,22 @@ export class DataService {
     });
 
     // Tải khách hàng từ API và cập nhật Cache mỗi lần vào site
-    this.http.get<any[]>(`${this.apiUrl}/customers`).subscribe((customers: any[]) => {
+    this.http.get<Customer[]>(`${this.apiUrl}/customers`).subscribe((customers: Customer[]) => {
       this.customersSubject.next(customers);
     });
+
+    // Tải thống kê dashboard
+    this.getDashboardStats().subscribe();
+  }
+
+  getDashboardStats(): Observable<DashboardStats> {
+    return this.http.get<DashboardStats>(`${this.apiUrl}/dashboard/stats`).pipe(
+      tap(stats => this.statsSubject.next(stats)),
+      catchError(err => {
+        console.error('Lỗi khi tải thống kê Dashboard', err);
+        return throwError(() => err);
+      })
+    );
   }
 
   // Product Methods
@@ -143,6 +158,7 @@ export class DataService {
         this.invoicesSubject.next([newInvoice, ...currentInvoices]);
         this.updateCustomerCache(newInvoice);
         this.markProductsAsSold(newInvoice.products || []);
+        this.getDashboardStats().subscribe(); // Cập nhật Dashboard ngay lập tức
         this.toast.success('Lập hóa đơn thành công!');
       }),
       catchError(err => {
@@ -234,25 +250,62 @@ export class DataService {
     const current = this.customersSubject.value;
     const exists = current.find(c => c.phone === invoice.buyerPhone);
 
-    let updated;
-    const newCustomer = {
+    const customerUpdate: Customer = {
+      p_id: exists ? exists.p_id : 0, // Dùng ID hiện có hoặc 0 nếu mới
       name: invoice.buyerName,
       phone: invoice.buyerPhone,
       address: invoice.buyerAddress
     };
 
+    let updated: Customer[];
     if (exists) {
-      updated = current.map(c => c.phone === invoice.buyerPhone ? newCustomer : c);
+      updated = current.map(c => c.phone === invoice.buyerPhone ? customerUpdate : c);
     } else {
-      updated = [...current, newCustomer];
+      updated = [...current, customerUpdate];
     }
 
     this.customersSubject.next(updated);
   }
 
   // Get unique customers from sync cache (always refreshed at startup)
-  getExistingCustomers(): Observable<any[]> {
+  getExistingCustomers(): Observable<Customer[]> {
     return this.customers$;
+  }
+
+  updateCustomer(customer: Customer): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/customers/${customer.p_id}`, customer).pipe(
+      tap(() => {
+        // 1. Cập nhật danh sách khách hàng
+        const currentCustomers = this.customersSubject.value;
+        const updatedCustomers = currentCustomers.map(c => c.p_id === customer.p_id ? customer : c);
+        this.customersSubject.next(updatedCustomers);
+
+        // 2. Cập nhật thông tin hiển thị trong danh sách hóa đơn (và công nợ)
+        const currentInvoices = this.invoicesSubject.value;
+        const updatedInvoices = currentInvoices.map(inv => {
+          // So khớp dựa trên p_id nếu sau này Invoice có p_id, hiện tại dùng phone là định danh ổn định nhất từ Backend join
+          // Để an toàn, ta cập nhật tất cả hóa đơn có cùng số điện thoại cũ của khách hàng này
+          // Tìm khách hàng cũ để lấy phone trùng khớp nếu phone vừa bị đổi
+          const oldCustomer = currentCustomers.find(c => c.p_id === customer.p_id);
+          if (inv.buyerPhone === oldCustomer?.phone || inv.buyerPhone === customer.phone) {
+            return {
+              ...inv,
+              buyerName: customer.name,
+              buyerPhone: customer.phone,
+              buyerAddress: customer.address
+            };
+          }
+          return inv;
+        });
+        this.invoicesSubject.next(updatedInvoices);
+
+        this.toast.success('Cập nhật thông tin khách hàng thành công');
+      }),
+      catchError(err => {
+        this.toast.error('Lỗi khi cập nhật khách hàng');
+        return throwError(() => err);
+      })
+    );
   }
 
   // Currency Utilities

@@ -68,9 +68,9 @@ extension Int {
 
 struct Invoice: Codable, Identifiable {
     let id: String
-    let buyerName: String
-    let buyerPhone: String
-    let buyerAddress: String
+    var buyerName: String
+    var buyerPhone: String
+    var buyerAddress: String
     let totalAmount: Int
     let amountPaid: Int?
     let debt: Int?
@@ -120,10 +120,29 @@ struct Invoice: Codable, Identifiable {
         self.date = (try? container.decode(String.self, forKey: .date)) ?? ""
         self.createdAt = try? container.decode(String.self, forKey: .createdAt)
     }
+    
+    // Custom init for creating new invoices
+    init(buyerName: String, buyerPhone: String, buyerAddress: String, totalAmount: Int, amountPaid: Int, products: [Product]) {
+        self.id = "" // Server will generate this
+        self.buyerName = buyerName
+        self.buyerPhone = buyerPhone
+        self.buyerAddress = buyerAddress
+        self.totalAmount = totalAmount
+        self.amountPaid = amountPaid
+        self.debt = totalAmount - amountPaid
+        self.isFullyPaid = amountPaid >= totalAmount
+        self.products = products
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        self.date = formatter.string(from: Date())
+        self.createdAt = self.date
+    }
 }
 
 struct Customer: Codable, Identifiable {
-    var id: String { phone }
+    var id: Int { p_id }
+    let p_id: Int
     let name: String
     let phone: String
     let address: String

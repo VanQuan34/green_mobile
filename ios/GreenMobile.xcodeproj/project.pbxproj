@@ -21,6 +21,8 @@
 		C1A604C7DB169DE54CA26B7E /* Config.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ED0508397B24ECD068CA109 /* Config.swift */; };
 		C1C561C3B281197BD61CCAE3 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26885246210BAC7D5E331638 /* DashboardView.swift */; };
 		C79886EBF17B2044C541EE41 /* InvoiceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BC67138BC5218BD3E45729 /* InvoiceListView.swift */; };
+		E79886EBF17B2044C541EE99 /* InvoiceFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5BC67138BC5218BD3E45799 /* InvoiceFormView.swift */; };
+		F79886EBF17B2044C541EE01 /* CustomerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BC67138BC5218BD3E45701 /* CustomerListView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,6 +42,8 @@
 		D00B7C34DC84F778D887A91A /* GreenMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GreenMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D4E89451DCBB1E1C98A7821E /* ProductListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductListView.swift; sourceTree = "<group>"; };
 		D5BC67138BC5218BD3E45729 /* InvoiceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceListView.swift; sourceTree = "<group>"; };
+		F5BC67138BC5218BD3E45799 /* InvoiceFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceFormView.swift; sourceTree = "<group>"; };
+		D5BC67138BC5218BD3E45701 /* CustomerListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomerListView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -64,11 +68,13 @@
 			children = (
 				97EE34915CFB6B3C20FAF132 /* AddProductFormView.swift */,
 				26885246210BAC7D5E331638 /* DashboardView.swift */,
+				F5BC67138BC5218BD3E45799 /* InvoiceFormView.swift */,
 				D5BC67138BC5218BD3E45729 /* InvoiceListView.swift */,
 				430B6845F83C6968B896FDA7 /* LoginView.swift */,
 				52AEF329A2D47F253EA5C7F2 /* MainTabView.swift */,
 				D4E89451DCBB1E1C98A7821E /* ProductListView.swift */,
 				7894C9185DEE8F3717DD20B7 /* SettingsView.swift */,
+				D5BC67138BC5218BD3E45701 /* CustomerListView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -179,11 +185,13 @@
 				AF0CBF444AE6A2E1941B0AE3 /* DataModels.swift in Sources */,
 				BBD2920344949A581DA3A5B8 /* GreenMobileApp.swift in Sources */,
 				C79886EBF17B2044C541EE41 /* InvoiceListView.swift in Sources */,
+				E79886EBF17B2044C541EE99 /* InvoiceFormView.swift in Sources */,
 				8DF8FEE881CFDA4A3FD135C4 /* LoginView.swift in Sources */,
 				9D532B08CA1E7B8520C3B554 /* MainTabView.swift in Sources */,
 				2133A7C24E7238AB846414D0 /* ProductListView.swift in Sources */,
 				4E1CB0BB906067613D272635 /* SettingsView.swift in Sources */,
 				2F0A06783C2CFEAEBAA55F9E /* Theme.swift in Sources */,
+				F79886EBF17B2044C541EE01 /* CustomerListView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

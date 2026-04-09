@@ -22,16 +22,16 @@ export interface Invoice {
   buyerAddress: string;
   buyerPhone: string;
   buyer_email?: string;
-  
+
   // New: Multiple products
-  products?: Product[]; 
+  products?: Product[];
   totalAmount: number;
 
   // Legacy (Keep for backward compatibility for now)
   productId?: string;
   productName?: string;
   productPrice?: number;
-  
+
   amountPaid: number;
   debt: number;
   isFullyPaid: boolean;
@@ -45,3 +45,21 @@ export interface MediaItem {
   name: string;
   date: string;
 }
+
+export interface DashboardStats {
+  soldCount: number;
+  inventoryCount: number;
+  totalRevenue: number;
+  totalPaid: number;
+  totalDebt: number;
+  totalCapital: number;
+  totalExpectedRevenue: number;
+}
+
+export interface Customer {
+  p_id: number;
+  name: string;
+  phone: string;
+  address: string;
+}
+

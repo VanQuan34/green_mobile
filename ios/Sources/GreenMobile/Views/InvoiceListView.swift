@@ -100,6 +100,29 @@ struct InvoiceListView: View {
                                 }
                             }
                             
+                            // Product Summary
+                            if let products = invoice.products, !products.isEmpty {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    ForEach(Array(products.prefix(2).enumerated()), id: \.offset) { index, product in
+                                        Text("• \(product.name)")
+                                            .font(.system(size: 11))
+                                            .foregroundColor(.secondary)
+                                    }
+                                    if products.count > 2 {
+                                        Text("... và \(products.count - 2) sản phẩm khác")
+                                            .font(.system(size: 10))
+                                            .fontWeight(.bold)
+                                            .foregroundColor(AppTheme.primary)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(AppTheme.primary.opacity(0.1))
+                                            .cornerRadius(4)
+                                            .padding(.leading, 8)
+                                    }
+                                }
+                                .padding(.top, 2)
+                            }
+                            
                             Text(invoice.formattedDate)
                                 .font(.system(size: 10))
                                 .foregroundColor(.gray)
@@ -122,7 +145,7 @@ struct InvoiceListView: View {
                 await dataManager.fetchInvoices()
             }
             .sheet(isPresented: $isShowingCreateInvoice) {
-                Text("Form lập hóa đơn mới")
+                InvoiceFormView(products: [])
             }
         }
     }

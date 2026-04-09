@@ -90,8 +90,11 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
               <td>{{ item.buyerPhone }}</td>
               <!-- <td>
                 <div class="product-info">
-                  <div class="p-item-tag" *ngFor="let p of item.products">
+                  <div class="p-item-tag" *ngFor="let p of item.products?.slice(0, 2)">
                     <span class="p-name">• {{ p.name }}</span>
+                  </div>
+                  <div class="more-products" *ngIf="item.products && item.products.length > 2">
+                    ... và {{ item.products.length - 2 }} khác
                   </div>
                 </div>
               </td> -->
@@ -267,6 +270,17 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
       .date-inputs {
         flex-direction: column;
       }
+    }
+    .more-products {
+      font-size: 0.7rem;
+      color: var(--primary);
+      font-weight: 700;
+      margin-top: 0.3rem;
+      padding: 0.15rem 0.5rem;
+      background: var(--primary-light);
+      border-radius: 4px;
+      display: inline-block;
+      border: 1px dashed var(--primary);
     }
   `]
 })

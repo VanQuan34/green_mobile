@@ -355,12 +355,12 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   private salesChart?: Chart;
   private inventoryChart?: Chart;
 
-  constructor(private dataService: DataService) {}
+  constructor(private dataService: DataService) { }
 
   ngOnInit() {
     this.dataService.products$.subscribe(() => this.calculateStats());
     this.dataService.invoices$.subscribe(() => this.calculateStats());
-    
+
     // Subscribe to backend stats
     this.dataService.stats$.subscribe(apiStats => {
       if (apiStats) {
@@ -371,11 +371,11 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         this.stats.totalDebt = apiStats.totalDebt;
         this.stats.totalInventoryValue = apiStats.totalCapital;
         this.stats.expectedTotalRevenue = apiStats.totalExpectedRevenue;
-        
+
         // Cập nhật biểu đồ nếu đã khởi tạo
         if (this.inventoryChart) {
-            this.inventoryChart.data.datasets[0].data = [this.stats.soldCount, this.stats.inventoryCount];
-            this.inventoryChart.update();
+          this.inventoryChart.data.datasets[0].data = [this.stats.soldCount, this.stats.inventoryCount];
+          this.inventoryChart.update();
         }
       }
     });
@@ -401,15 +401,15 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     // Doanh thu và Thực thu chỉ tính hóa đơn thực tế
     this.stats.totalRevenue = actualInvoices.reduce((sum, i) => sum + (i.totalAmount || i.productPrice || 0), 0);
     this.stats.totalPaid = actualInvoices.reduce((sum, i) => sum + i.amountPaid, 0);
-    
+
     // Tổng công nợ bao gồm cả hóa đơn thực tế và nợ nhập ngoài
     // this.stats.totalDebt = rawInvoices.reduce((sum, i) => sum + i.debt, 0); // Ưu tiên số từ API
-    
+
     // Đếm tổng số máy đã bán (Chỉ máy thực tế)
     // this.stats.soldCount = actualInvoices.reduce((sum, inv) => sum + (inv.products?.length || 1), 0); // Ưu tiên số từ API
     const unsoldProducts = products.filter(p => !p.sale);
     // this.stats.inventoryCount = unsoldProducts.length; // Ưu tiên số từ API
-    
+
     // Tổng vốn = Tổng giá gốc của các sản phẩm chưa bán + Tổng giá gốc của các sản phẩm TRONG HÓA ĐƠN THỰC TẾ
     const unsoldCapital = unsoldProducts.reduce((sum, p) => sum + (p.originalPrice || 0), 0);
     const soldCapital = actualInvoices.reduce((sum, inv) => {
@@ -421,9 +421,9 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         return sum + (product ? (product.originalPrice || 0) : 0);
       }
     }, 0);
-    
+
     this.stats.totalInventoryValue = unsoldCapital + soldCapital;
-    
+
     // Doanh thu dự kiến = Doanh thu thực tế (đã bán) + Tổng giá bán sản phẩm trong kho (chưa bán)
     const currentUnsoldRevenue = unsoldProducts.reduce((sum, p) => sum + (p.sellingPrice || 0), 0);
     this.stats.expectedTotalRevenue = this.stats.totalRevenue + currentUnsoldRevenue;
@@ -509,12 +509,12 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           legend: { display: false }
         },
         scales: {
-          y: { 
+          y: {
             beginAtZero: true,
             grid: { color: 'rgba(0,0,0,0.05)' },
             ticks: { font: { size: 10 } }
           },
-          x: { 
+          x: {
             grid: { display: false },
             ticks: { font: { size: 10 } }
           }

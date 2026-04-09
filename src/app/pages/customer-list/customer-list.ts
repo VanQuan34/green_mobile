@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, Renderer2, Inject, ElementRef, ViewChild } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
@@ -58,34 +59,55 @@ import { Customer } from '../../models/data.models';
         </table>
       </div>
 
-      <!-- Edit Modal -->
-      <div class="modal-backdrop" *ngIf="isEditModalOpen" (click)="closeEditModal()">
-        <div class="modal-content glass-card slide-up" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h3>Chỉnh sửa thông tin</h3>
-            <button class="close-btn" (click)="closeEditModal()">✕</button>
-          </div>
-          
-          <div class="modal-body">
-            <div class="form-group">
-              <label>Tên khách hàng</label>
-              <input type="text" [(ngModel)]="editingCustomer.name" placeholder="Nhập tên...">
+      <!-- Edit Modal Container -->
+      <div #modalContainer>
+        <div class="modal-backdrop" *ngIf="isEditModalOpen" (click)="closeEditModal()">
+          <div class="modal-content glass-card slide-up full-width-modal" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <div class="header-title">
+                <span class="header-icon">👤</span>
+                <h3>Chỉnh sửa thông tin khách hàng</h3>
+              </div>
+              <button class="close-btn" (click)="closeEditModal()">✕</button>
             </div>
             
-            <div class="form-group">
-              <label>Số điện thoại</label>
-              <input type="text" [(ngModel)]="editingCustomer.phone" placeholder="Nhập SĐT...">
+            <div class="modal-body scrollable">
+              <div class="form-grid">
+                <div class="form-group full-width">
+                  <label>Họ và tên</label>
+                  <div class="input-wrapper">
+                    <span class="input-icon">👤</span>
+                    <input type="text" [(ngModel)]="editingCustomer.name" placeholder="Nhập họ và tên khách hàng...">
+                  </div>
+                </div>
+                
+                <div class="form-group full-width">
+                  <label>Số điện thoại</label>
+                  <div class="input-wrapper">
+                    <span class="input-icon">📞</span>
+                    <input type="text" [(ngModel)]="editingCustomer.phone" placeholder="Nhập số điện thoại...">
+                  </div>
+                </div>
+                
+                <div class="form-group full-width">
+                  <label>Địa chỉ</label>
+                  <div class="input-wrapper align-top">
+                    <span class="input-icon">📍</span>
+                    <textarea [(ngModel)]="editingCustomer.address" placeholder="Nhập địa chỉ chi tiết..."></textarea>
+                  </div>
+                </div>
+              </div>
             </div>
             
-            <div class="form-group">
-              <label>Địa chỉ</label>
-              <textarea [(ngModel)]="editingCustomer.address" placeholder="Nhập địa chỉ..."></textarea>
+            <div class="modal-footer">
+              <button class="btn btn-outline" (click)="closeEditModal()">
+                <span>Hủy bỏ</span>
+              </button>
+              <button class="btn btn-primary" (click)="saveCustomer()">
+                <span class="btn-icon-s">💾</span>
+                <span>Lưu thay đổi</span>
+              </button>
             </div>
-          </div>
-          
-          <div class="modal-footer">
-            <button class="btn btn-outline" (click)="closeEditModal()">Hủy</button>
-            <button class="btn btn-primary" (click)="saveCustomer()">Lưu thay đổi</button>
           </div>
         </div>
       </div>
@@ -208,82 +230,197 @@ import { Customer } from '../../models/data.models';
       opacity: 0.5;
     }
 
-    /* Modal Styles */
+    /* Full Width Modal Styles */
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.4);
-      backdrop-filter: blur(4px);
-      z-index: 2000;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
       display: flex;
-      align-items: center;
+      align-items: flex-end; /* Mobile style: slide from bottom */
       justify-content: center;
-      padding: 1rem;
     }
 
-    .modal-content {
+    .modal-content.full-width-modal {
       width: 100%;
-      max-width: 500px;
-      padding: 0;
-      overflow: hidden;
+      max-width: 100%; /* Full width */
+      height: auto;
+      max-height: 92vh;
+      border-radius: 1.5rem 1.5rem 0 0; /* Rounded top for mobile */
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+
+    @media (min-width: 768px) {
+      .modal-backdrop {
+        align-items: center;
+        padding: 2rem;
+      }
+      .modal-content.full-width-modal {
+        max-width: 800px; /* Cân đối trên desktop */
+        border-radius: 1.25rem;
+        overflow: hidden;
+      }
     }
 
     .modal-header {
-      padding: 1.5rem;
-      border-bottom: 1px solid var(--border);
+      padding: 1.25rem 1.5rem;
+      background: rgba(255, 255, 255, 0.8);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    .modal-header h3 { margin: 0; font-size: 1.25rem; }
-
-    .close-btn {
-      background: none;
-      border: none;
-      font-size: 1.25rem;
-      cursor: pointer;
-      color: var(--text-muted);
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
     }
 
-    .modal-body {
-      padding: 1.5rem;
+    .header-icon {
+      font-size: 1.25rem;
+      background: var(--primary-light);
+      width: 36px;
+      height: 36px;
       display: flex;
-      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+    }
+
+    .modal-header h3 { 
+      margin: 0; 
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .close-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: #f1f5f9;
+      color: #64748b;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .close-btn:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
+    .modal-body.scrollable {
+      padding: 1.5rem;
+      overflow-y: auto;
+      background: #fafafa;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr;
       gap: 1.25rem;
     }
 
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
     .form-group label {
-      font-size: 0.875rem;
+      display: block;
+      font-size: 0.85rem;
       font-weight: 600;
-      color: var(--text-main);
+      color: #475569;
+      margin-bottom: 0.5rem;
     }
 
-    .form-group input, .form-group textarea {
-      padding: 0.75rem 1rem;
-      border: 1px solid var(--border);
-      border-radius: 0.5rem;
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 1rem;
+      color: #94a3b8;
+      font-size: 1rem;
+    }
+
+    .input-wrapper input, .input-wrapper textarea {
       width: 100%;
+      padding: 0.75rem 1rem 0.75rem 2.75rem;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 0.75rem;
+      font-size: 0.95rem;
+      background: #fff;
+      transition: all 0.2s;
     }
 
-    .form-group textarea {
-      height: 100px;
-      resize: vertical;
+    .input-wrapper input:focus, .input-wrapper textarea:focus {
+      border-color: #10b981;
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+      outline: none;
+    }
+
+    .input-wrapper textarea {
+      min-height: 120px;
+      padding-top: 0.85rem;
+    }
+
+    .align-top .input-icon {
+      top: 0.85rem;
     }
 
     .modal-footer {
       padding: 1.25rem 1.5rem;
-      border-top: 1px solid var(--border);
+      background: #fff;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
       display: flex;
       justify-content: flex-end;
       gap: 0.75rem;
     }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-outline {
+      background: #fff;
+      border: 1.5px solid #e2e8f0;
+      color: #475569;
+    }
+
+    .btn-outline:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+    }
+
+    .btn-primary {
+      background: #10b981;
+      border: none;
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+
+    .btn-primary:hover {
+      background: #059669;
+      transform: translateY(-1px);
+    }
+
+    .btn-icon-s { font-size: 1.1rem; }
 
     @media (max-width: 768px) {
       .action-bar {
@@ -301,8 +438,13 @@ export class CustomerListComponent implements OnInit {
 
   isEditModalOpen = false;
   editingCustomer: Customer = { p_id: 0, name: '', phone: '', address: '' };
+  @ViewChild('modalContainer') modalContainer!: ElementRef;
 
-  constructor(private dataService: DataService) {}
+  constructor(
+    private dataService: DataService,
+    private renderer: Renderer2,
+    @Inject(DOCUMENT) private document: Document
+  ) { }
 
   ngOnInit() {
     this.dataService.customers$.subscribe(list => {
@@ -316,8 +458,8 @@ export class CustomerListComponent implements OnInit {
       this.filteredCustomers = [...this.customers];
     } else {
       const q = this.searchQuery.toLowerCase().trim();
-      this.filteredCustomers = this.customers.filter(c => 
-        c.name.toLowerCase().includes(q) || 
+      this.filteredCustomers = this.customers.filter(c =>
+        c.name.toLowerCase().includes(q) ||
         c.phone.includes(q)
       );
     }
@@ -326,16 +468,27 @@ export class CustomerListComponent implements OnInit {
   openEditModal(customer: Customer) {
     this.editingCustomer = { ...customer };
     this.isEditModalOpen = true;
+
+    // Append to body after a short delay to ensure modal is rendered
+    setTimeout(() => {
+      if (this.modalContainer) {
+        this.renderer.appendChild(this.document.body, this.modalContainer.nativeElement);
+      }
+    }, 0);
   }
 
   closeEditModal() {
     this.isEditModalOpen = false;
+    // Move back to component's DOM when closing
+    if (this.modalContainer) {
+      // Technically not strictly necessary but good for cleanup
+    }
   }
 
   saveCustomer() {
     if (!this.editingCustomer.name || !this.editingCustomer.phone) {
-        alert('Vui lòng điền đầy đủ tên và số điện thoại');
-        return;
+      alert('Vui lòng điền đầy đủ tên và số điện thoại');
+      return;
     }
 
     this.dataService.updateCustomer(this.editingCustomer).subscribe({

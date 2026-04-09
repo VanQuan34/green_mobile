@@ -44,3 +44,20 @@ export interface MediaItem {
   date: string;
 }
 
+export interface DashboardStats {
+  soldCount: number;
+  inventoryCount: number;
+  totalRevenue: number;
+  totalPaid: number;
+  totalDebt: number;
+  totalCapital: number;
+  totalExpectedRevenue: number;
+}
+
+export interface Customer {
+  p_id: number;
+  name: string;
+  phone: string;
+  address: string;
+}
+

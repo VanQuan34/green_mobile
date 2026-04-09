@@ -21,6 +21,11 @@ struct MainTabView: View {
                     Label("Sản phẩm", systemImage: "cart.fill")
                 }
             
+            CustomerListView()
+                .tabItem {
+                    Label("Khách hàng", systemImage: "person.2.fill")
+                }
+            
             SettingsView()
                 .tabItem {
                     Label("Cài đặt", systemImage: "gearshape.fill")

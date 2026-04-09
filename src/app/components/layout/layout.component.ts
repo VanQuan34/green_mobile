@@ -36,6 +36,10 @@ import { AuthService } from '../../services/auth.service';
             <span class="icon">💳</span>
             <span>Công nợ</span>
           </a>
+          <a routerLink="/customers" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()">
+            <span class="icon">👥</span>
+            <span>Khách hàng</span>
+          </a>
           <a routerLink="/settings" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()">
             <span class="icon">⚙️</span>
             <span>Cài đặt</span>
@@ -331,6 +335,7 @@ export class LayoutComponent {
     if (url.includes('invoices')) return 'Hóa đơn';
     if (url.includes('debts')) return 'Quản lý Công nợ';
     if (url.includes('settings')) return 'Cài đặt hệ thống';
+    if (url.includes('customers')) return 'Danh sách khách hàng';
     return 'Di Động Xanh';
   }
 }

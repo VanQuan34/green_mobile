@@ -231,10 +231,16 @@ function gm_register_rest_routes() {
         )
     ));
 
-    // Customers Endpoint (Unique from Invoices)
+    // Customers Endpoints
     register_rest_route($namespace, '/customers', array(
         'methods'  => 'GET',
         'callback' => 'gm_handle_get_customers',
+        'permission_callback' => '__return_true'
+    ));
+
+    register_rest_route($namespace, '/customers/(?P<id>\d+)', array(
+        'methods'  => 'PUT',
+        'callback' => 'gm_handle_update_customer',
         'permission_callback' => '__return_true'
     ));
 
@@ -250,6 +256,13 @@ function gm_register_rest_routes() {
             'callback' => 'gm_handle_upload_image',
             'permission_callback' => '__return_true'
         )
+    ));
+
+    // Dashboard Stats Endpoint
+    register_rest_route($namespace, '/dashboard/stats', array(
+        'methods'  => 'GET',
+        'callback' => 'gm_handle_get_dashboard_stats',
+        'permission_callback' => '__return_true'
     ));
 }
 
@@ -649,8 +662,25 @@ function gm_handle_update_invoice($request) {
 function gm_handle_get_customers() {
     global $wpdb;
     $table = $wpdb->prefix . 'gm_users';
-    $results = $wpdb->get_results("SELECT name, phone, address FROM $table ORDER BY name ASC");
+    $results = $wpdb->get_results("SELECT id as p_id, name, phone, address FROM $table ORDER BY name ASC");
     return new WP_REST_Response($results, 200);
+}
+
+function gm_handle_update_customer($request) {
+    global $wpdb;
+    $id = $request->get_param('id');
+    $params = $request->get_json_params();
+    $table = $wpdb->prefix . 'gm_users';
+
+    $data = array(
+        'name'    => sanitize_text_field($params['name'] ?? ''),
+        'phone'   => sanitize_text_field($params['phone'] ?? ''),
+        'address' => sanitize_text_field($params['address'] ?? '')
+    );
+
+    $wpdb->update($table, $data, array('id' => $id));
+
+    return new WP_REST_Response(array('message' => 'Customer updated'), 200);
 }
 
 /**
@@ -847,6 +877,45 @@ function gm_sync_to_google_sheet($invoice_data) {
         'cookies'     => array(),
         'sslverify'   => false
     ));
+}
+
+/**
+ * 8. DASHBOARD STATS HELPER
+ */
+function gm_handle_get_dashboard_stats() {
+    global $wpdb;
+    $table_products = $wpdb->prefix . 'gm_products';
+    $table_invoices = $wpdb->prefix . 'gm_invoices';
+    
+    // 1. Đếm sản phẩm đã bán và tồn kho
+    $sold_count = (int)$wpdb->get_var("SELECT COUNT(*) FROM $table_products WHERE sale = 1") ?: 0;
+    $inventory_count = (int)$wpdb->get_var("SELECT COUNT(*) FROM $table_products WHERE sale = 0") ?: 0;
+    
+    // 2. Tổng vốn (Giá gốc của TẤT CẢ sản phẩm)
+    $total_capital = (int)$wpdb->get_var("SELECT SUM(original_price) FROM $table_products") ?: 0;
+    
+    // 3. Doanh thu dự kiến (Giá bán của TẤT CẢ sản phẩm nếu bán sạch)
+    $total_expected_revenue = (int)$wpdb->get_var("SELECT SUM(selling_price) FROM $table_products") ?: 0;
+    
+    // 4. Doanh thu và thực thu từ hóa đơn (Loại bỏ các hóa đơn nợ nhập ngoài MANUAL-)
+    $revenue_data = $wpdb->get_row("
+        SELECT SUM(amount_paid + debt) as total_revenue, SUM(amount_paid) as total_paid, SUM(debt) as total_debt 
+        FROM $table_invoices 
+        WHERE id NOT LIKE 'MANUAL-%'
+    ");
+    
+    // 5. Tổng nợ (bao gồm cả nợ nhập ngoài)
+    $total_debt = (int)$wpdb->get_var("SELECT SUM(debt) FROM $table_invoices") ?: 0;
+    
+    return new WP_REST_Response(array(
+        'soldCount'             => $sold_count,
+        'inventoryCount'        => $inventory_count,
+        'totalRevenue'          => (int)($revenue_data->total_revenue ?? 0),
+        'totalPaid'             => (int)($revenue_data->total_paid ?? 0),
+        'totalDebt'             => $total_debt,
+        'totalCapital'          => $total_capital,
+        'totalExpectedRevenue'  => $total_expected_revenue
+    ), 200);
 }
 
 /**

@@ -68,9 +68,9 @@ extension Int {
 
 struct Invoice: Codable, Identifiable {
     let id: String
-    let buyerName: String
-    let buyerPhone: String
-    let buyerAddress: String
+    var buyerName: String
+    var buyerPhone: String
+    var buyerAddress: String
     let totalAmount: Int
     let amountPaid: Int?
     let debt: Int?
@@ -141,7 +141,8 @@ struct Invoice: Codable, Identifiable {
 }
 
 struct Customer: Codable, Identifiable {
-    var id: String { phone }
+    var id: Int { p_id }
+    let p_id: Int
     let name: String
     let phone: String
     let address: String

@@ -1,16 +1,20 @@
 import Foundation
 import Combine
 
-struct DashboardStats {
+struct DashboardStats: Codable {
     var totalRevenue: Int = 0
     var totalPaid: Int = 0
     var totalProfit: Int = 0
     var totalDebt: Int = 0
     var soldCount: Int = 0
     var inventoryCount: Int = 0
-    var totalInventoryValue: Int = 0
-    var expectedTotalRevenue: Int = 0
+    var totalCapital: Int = 0
+    var totalExpectedRevenue: Int = 0
     var last7DaysRevenue: [Date: Int] = [:]
+    
+    enum CodingKeys: String, CodingKey {
+        case totalRevenue, totalPaid, totalDebt, soldCount, inventoryCount, totalCapital, totalExpectedRevenue
+    }
 }
 
 class DataManager: ObservableObject {
@@ -36,6 +40,7 @@ class DataManager: ObservableObject {
             group.addTask { await self.fetchInvoices() }
             group.addTask { await self.fetchCustomers() }
             group.addTask { await self.fetchProducts(page: 1) }
+            group.addTask { await self.fetchDashboardStats() }
         }
         calculateDashboardStats()
     }
@@ -100,6 +105,64 @@ class DataManager: ObservableObject {
         guard let url = URL(string: "\(AppConfig.apiUrl)/customers") else { return }
         await performFetch(url: url) { (data: [Customer]) in
             DispatchQueue.main.async { self.customers = data }
+        }
+    }
+    
+    func fetchDashboardStats() async {
+        guard let url = URL(string: "\(AppConfig.apiUrl)/dashboard/stats") else { return }
+        await performFetch(url: url) { (data: DashboardStats) in
+            DispatchQueue.main.async {
+                // Update specific stats from API
+                self.dashboardStats.soldCount = data.soldCount
+                self.dashboardStats.inventoryCount = data.inventoryCount
+                self.dashboardStats.totalRevenue = data.totalRevenue
+                self.dashboardStats.totalPaid = data.totalPaid
+                self.dashboardStats.totalDebt = data.totalDebt
+                self.dashboardStats.totalCapital = data.totalCapital
+                self.dashboardStats.totalExpectedRevenue = data.totalExpectedRevenue
+                
+                self.calculateDashboardStats()
+            }
+        }
+    }
+    
+    func updateCustomer(_ customer: Customer) async throws {
+        guard let url = URL(string: "\(AppConfig.apiUrl)/customers/\(customer.p_id)") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        if let token = UserDefaults.standard.string(forKey: "token") {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        request.httpBody = try JSONEncoder().encode(customer)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse {
+            if httpResponse.statusCode == 200 {
+                // Keep old phone for matching before refresh
+                let oldPhone = customers.first { $0.p_id == customer.p_id }?.phone ?? ""
+                
+                await fetchCustomers() // Refresh list
+                
+                // Update local invoices to reflect changes immediately
+                DispatchQueue.main.async {
+                    for i in 0..<self.invoices.count {
+                        if self.invoices[i].buyerPhone == oldPhone || self.invoices[i].buyerPhone == customer.phone {
+                            self.invoices[i].buyerName = customer.name
+                            self.invoices[i].buyerPhone = customer.phone
+                            self.invoices[i].buyerAddress = customer.address
+                        }
+                    }
+                }
+            } else {
+                if let errorJson = String(data: data, encoding: .utf8) {
+                    print("DataManager Error: Update Customer failed (\(httpResponse.statusCode)): \(errorJson)")
+                }
+                throw AppError.loginFailed(message: "Không thể cập nhật khách hàng. Mã lỗi \(httpResponse.statusCode).")
+            }
         }
     }
     
@@ -203,6 +266,7 @@ class DataManager: ObservableObject {
         if let httpResponse = response as? HTTPURLResponse {
             if httpResponse.statusCode == 200 {
                 await fetchInvoices() // Refresh
+                await fetchDashboardStats() // Refresh Dashboard data
             } else {
                 if let errorJson = String(data: data, encoding: .utf8) {
                     print("DataManager Error: Add Invoice failed (\(httpResponse.statusCode)): \(errorJson)")

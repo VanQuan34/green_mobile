@@ -243,6 +243,25 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   ngOnInit() {
     this.dataService.products$.subscribe(() => this.calculateStats());
     this.dataService.invoices$.subscribe(() => this.calculateStats());
+    
+    // Subscribe to backend stats
+    this.dataService.stats$.subscribe(apiStats => {
+      if (apiStats) {
+        this.stats.soldCount = apiStats.soldCount;
+        this.stats.inventoryCount = apiStats.inventoryCount;
+        this.stats.totalRevenue = apiStats.totalRevenue;
+        this.stats.totalPaid = apiStats.totalPaid;
+        this.stats.totalDebt = apiStats.totalDebt;
+        this.stats.totalInventoryValue = apiStats.totalCapital;
+        this.stats.expectedTotalRevenue = apiStats.totalExpectedRevenue;
+        
+        // Cập nhật biểu đồ nếu đã khởi tạo
+        if (this.inventoryChart) {
+            this.inventoryChart.data.datasets[0].data = [this.stats.soldCount, this.stats.inventoryCount];
+            this.inventoryChart.update();
+        }
+      }
+    });
   }
 
   ngAfterViewInit() {
@@ -265,12 +284,12 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.stats.totalPaid = actualInvoices.reduce((sum, i) => sum + i.amountPaid, 0);
     
     // Tổng công nợ bao gồm cả hóa đơn thực tế và nợ nhập ngoài
-    this.stats.totalDebt = rawInvoices.reduce((sum, i) => sum + i.debt, 0);
+    // this.stats.totalDebt = rawInvoices.reduce((sum, i) => sum + i.debt, 0); // Ưu tiên số từ API
     
     // Đếm tổng số máy đã bán (Chỉ máy thực tế)
-    this.stats.soldCount = actualInvoices.reduce((sum, inv) => sum + (inv.products?.length || 1), 0);
+    // this.stats.soldCount = actualInvoices.reduce((sum, inv) => sum + (inv.products?.length || 1), 0); // Ưu tiên số từ API
     const unsoldProducts = products.filter(p => !p.sale);
-    this.stats.inventoryCount = unsoldProducts.length;
+    // this.stats.inventoryCount = unsoldProducts.length; // Ưu tiên số từ API
     
     // Tổng vốn = Tổng giá gốc của các sản phẩm chưa bán + Tổng giá gốc của các sản phẩm TRONG HÓA ĐƠN THỰC TẾ
     const unsoldCapital = unsoldProducts.reduce((sum, p) => sum + (p.originalPrice || 0), 0);

@@ -83,9 +83,12 @@ import * as XLSX from 'xlsx';
               <td>
                 <div class="product-info">
                   <ng-container *ngIf="invoice.products && invoice.products.length > 0; else legacyProduct">
-                    <div class="p-item-tag" *ngFor="let p of invoice.products">
+                    <div class="p-item-tag" *ngFor="let p of invoice.products.slice(0, 2)">
                       <span class="p-name">{{ p.name }}</span>
                       <span class="p-price text-muted">{{ (p.sellingPrice || 0) | number }}đ</span>
+                    </div>
+                    <div class="more-products" *ngIf="invoice.products.length > 2">
+                      ... và {{ invoice.products.length - 2 }} sản phẩm khác
                     </div>
                   </ng-container>
                   <ng-template #legacyProduct>
@@ -410,6 +413,17 @@ import * as XLSX from 'xlsx';
     
     .empty-msg span {
       font-size: 3rem;
+    }
+    .more-products {
+      font-size: 0.75rem;
+      color: var(--primary);
+      font-weight: 600;
+      margin-top: 0.4rem;
+      padding: 0.2rem 0.6rem;
+      background: var(--primary-light);
+      border-radius: 6px;
+      display: inline-block;
+      border: 1px dashed var(--primary);
     }
   `]
 })

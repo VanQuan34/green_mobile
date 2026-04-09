@@ -122,7 +122,7 @@ struct InvoiceListView: View {
                 await dataManager.fetchInvoices()
             }
             .sheet(isPresented: $isShowingCreateInvoice) {
-                Text("Form lập hóa đơn mới")
+                InvoiceFormView(products: [])
             }
         }
     }

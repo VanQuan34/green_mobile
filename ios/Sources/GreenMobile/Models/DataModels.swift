@@ -120,6 +120,24 @@ struct Invoice: Codable, Identifiable {
         self.date = (try? container.decode(String.self, forKey: .date)) ?? ""
         self.createdAt = try? container.decode(String.self, forKey: .createdAt)
     }
+    
+    // Custom init for creating new invoices
+    init(buyerName: String, buyerPhone: String, buyerAddress: String, totalAmount: Int, amountPaid: Int, products: [Product]) {
+        self.id = "" // Server will generate this
+        self.buyerName = buyerName
+        self.buyerPhone = buyerPhone
+        self.buyerAddress = buyerAddress
+        self.totalAmount = totalAmount
+        self.amountPaid = amountPaid
+        self.debt = totalAmount - amountPaid
+        self.isFullyPaid = amountPaid >= totalAmount
+        self.products = products
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        self.date = formatter.string(from: Date())
+        self.createdAt = self.date
+    }
 }
 
 struct Customer: Codable, Identifiable {

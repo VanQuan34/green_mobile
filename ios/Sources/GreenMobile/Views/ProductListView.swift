@@ -107,6 +107,7 @@ struct ProductListView: View {
 
 struct ProductDetailView: View {
     let product: Product
+    @State private var isShowingInvoiceForm = false
     
     var body: some View {
         List {
@@ -137,9 +138,26 @@ struct ProductDetailView: View {
                         .foregroundColor(AppTheme.primary)
                 }
             }
+            
+            Section {
+                Button(action: { isShowingInvoiceForm = true }) {
+                    HStack {
+                        Spacer()
+                        Label("Lập hóa đơn ngay", systemImage: "plus.circle.fill")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        Spacer()
+                    }
+                    .padding(.vertical, 10)
+                }
+                .listRowBackground(AppTheme.primary)
+            }
         }
         .navigationTitle("Chi tiết sản phẩm")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $isShowingInvoiceForm) {
+            InvoiceFormView(products: [product])
+        }
     }
 }
 

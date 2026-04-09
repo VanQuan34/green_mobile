@@ -71,7 +71,7 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
             <tr>
               <th>Khách hàng</th>
               <th>Số điện thoại</th>
-              <th>Sản phẩm</th>
+              <!-- <th>Sản phẩm</th> -->
               <th>Tổng tiền</th>
               <th>Đã trả</th>
               <th>Còn nợ</th>
@@ -88,13 +88,13 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
                 </div>
               </td>
               <td>{{ item.buyerPhone }}</td>
-              <td>
+              <!-- <td>
                 <div class="product-info">
                   <div class="p-item-tag" *ngFor="let p of item.products">
                     <span class="p-name">• {{ p.name }}</span>
                   </div>
                 </div>
-              </td>
+              </td> -->
               <td class="font-bold">{{ item.totalAmount | number }}đ</td>
               <td class="text-green">{{ item.amountPaid | number }}đ</td>
               <td class="text-red font-bold">{{ item.debt | number }}đ</td>
@@ -273,7 +273,7 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
 export class DebtListComponent implements OnInit {
   allInvoices: Invoice[] = [];
   filteredDebts: Invoice[] = [];
-  
+
   timeFilter: '3d' | '7d' | '1m' | 'custom' = '7d';
   startDate: string = '';
   endDate: string = '';
@@ -284,7 +284,7 @@ export class DebtListComponent implements OnInit {
   selectedInvoice: Invoice | null = null;
   showManualDebtModal = false;
 
-  constructor(private dataService: DataService) {}
+  constructor(private dataService: DataService) { }
 
   ngOnInit() {
     this.dataService.invoices$.subscribe(list => {
@@ -328,8 +328,8 @@ export class DebtListComponent implements OnInit {
     // Search filtering
     if (this.searchQuery) {
       const q = this.searchQuery.toLowerCase();
-      list = list.filter(i => 
-        i.buyerName.toLowerCase().includes(q) || 
+      list = list.filter(i =>
+        i.buyerName.toLowerCase().includes(q) ||
         i.buyerPhone.includes(q)
       );
     }
@@ -342,20 +342,20 @@ export class DebtListComponent implements OnInit {
     list.forEach(inv => {
       const key = inv.buyerPhone || inv.buyerName;
       const totalAmt = inv.totalAmount || inv.productPrice || 1;
-      
+
       // Chuẩn bị danh sách sản phẩm kèm ngày mua và tiền đã trả từng món (pro-rata)
-      const currentInvProducts: any[] = inv.products ? 
+      const currentInvProducts: any[] = inv.products ?
         inv.products.map(p => {
           const ratio = p.sellingPrice / totalAmt;
-          return { 
-            ...p, 
+          return {
+            ...p,
             purchaseDate: inv.createdAt,
             amountPaid: Math.round(inv.amountPaid * ratio),
             debt: Math.round(inv.debt * ratio)
           };
-        }) : 
-        (inv.productName ? [{ 
-          name: inv.productName, 
+        }) :
+        (inv.productName ? [{
+          name: inv.productName,
           purchaseDate: inv.createdAt,
           amountPaid: inv.amountPaid,
           debt: inv.debt,
@@ -369,10 +369,10 @@ export class DebtListComponent implements OnInit {
         group.totalAmount += (inv.totalAmount || inv.productPrice || 0);
         group.amountPaid += inv.amountPaid;
         group.debt += inv.debt;
-        
+
         // Gộp sản phẩm kèm ngày mua
         group.products = [...(group.products || []), ...currentInvProducts];
-        
+
         // Giữ ngày mới nhất cho meta data chung của nhóm
         if (new Date(inv.createdAt) > new Date(group.createdAt)) {
           group.createdAt = inv.createdAt;

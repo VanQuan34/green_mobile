@@ -17,9 +17,11 @@ export interface Product {
 
 export interface Invoice {
   id: string;
+  buyer_id?: string;
   buyerName: string;
   buyerAddress: string;
   buyerPhone: string;
+  buyer_email?: string;
   
   // New: Multiple products
   products?: Product[]; 
@@ -33,7 +35,7 @@ export interface Invoice {
   amountPaid: number;
   debt: number;
   isFullyPaid: boolean;
-  createdAt: Date;
+  createdAt: Date | string;
 }
 
 export interface MediaItem {
@@ -43,4 +45,3 @@ export interface MediaItem {
   name: string;
   date: string;
 }
-

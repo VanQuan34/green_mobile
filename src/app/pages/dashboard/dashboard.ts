@@ -1,5 +1,6 @@
 import { Component, OnInit, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { Product, Invoice } from '../../models/data.models';
 import { Chart, registerables } from 'chart.js';
@@ -9,7 +10,7 @@ Chart.register(...registerables);
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="dashboard-page scale-in">
       <!-- KPI Cards -->
@@ -73,7 +74,32 @@ Chart.register(...registerables);
       <div class="charts-grid">
         <div class="chart-container glass-card">
           <div class="chart-header">
-            <h3>Xu hướng doanh thu (7 ngày)</h3>
+            <h3>Xu hướng doanh thu</h3>
+            <div class="period-selector">
+              <button 
+                *ngFor="let p of periods" 
+                class="period-btn" 
+                [class.active]="selectedPeriod === p.value"
+                (click)="onPeriodChange(p.value)">
+                {{ p.label }}
+              </button>
+              <button 
+                class="period-btn" 
+                [class.active]="selectedPeriod === 'custom'"
+                (click)="onPeriodChange('custom')">
+                📅 Tùy chọn
+              </button>
+            </div>
+          </div>
+          <div class="custom-date-row" *ngIf="selectedPeriod === 'custom'">
+            <div class="date-field">
+              <label>Từ ngày</label>
+              <input type="date" [ngModel]="customStartDate" (ngModelChange)="onCustomDateChange($event, 'start')" />
+            </div>
+            <div class="date-field">
+              <label>Đến ngày</label>
+              <input type="date" [ngModel]="customEndDate" (ngModelChange)="onCustomDateChange($event, 'end')" />
+            </div>
           </div>
           <div class="canvas-wrapper">
             <canvas #salesChart></canvas>
@@ -181,12 +207,94 @@ Chart.register(...registerables);
 
     .chart-header {
       margin-bottom: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
     }
 
     .chart-header h3 {
       font-size: 1.1rem;
       font-weight: 700;
       color: var(--text-main);
+      margin: 0;
+    }
+
+    .period-selector {
+      display: flex;
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.04);
+      border-radius: 10px;
+      padding: 3px;
+    }
+
+    .period-btn {
+      border: none;
+      background: transparent;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      white-space: nowrap;
+    }
+
+    .period-btn:hover {
+      color: var(--text-main);
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    .period-btn.active {
+      background: #10b981;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    }
+
+    .custom-date-row {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      padding: 12px 14px;
+      background: rgba(0, 0, 0, 0.02);
+      border-radius: 10px;
+      animation: slideDown 0.25s ease;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .date-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+
+    .date-field label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .date-field input {
+      border: 1.5px solid rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-main);
+      background: #fff;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .date-field input:focus {
+      border-color: #10b981;
     }
 
     .canvas-wrapper {
@@ -224,6 +332,15 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   @ViewChild('salesChart') salesChartRef!: ElementRef;
   @ViewChild('inventoryChart') inventoryChartRef!: ElementRef;
 
+  periods = [
+    { label: '3 ngày', value: '3d' },
+    { label: '7 ngày', value: '7d' },
+    { label: '1 tháng', value: '1m' }
+  ];
+  selectedPeriod = '7d';
+  customStartDate = '';
+  customEndDate = '';
+
   stats = {
     totalRevenue: 0,
     totalPaid: 0,
@@ -249,7 +366,9 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     setTimeout(() => {
       this.initSalesChart();
       this.initInventoryChart();
-    }, 100);
+      // Chạy lại tính toán/cập nhật chart sau khi đã init xong canvas
+      this.calculateStats();
+    }, 150);
   }
 
   private calculateStats() {
@@ -303,33 +422,59 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       }
       return sum + (revenue - cost);
     }, 0);
+
+    // Cập nhật chart nếu đã được khởi tạo
+    this.updateSalesChart();
+    this.updateInventoryChart();
+  }
+
+  onPeriodChange(period: string) {
+    this.selectedPeriod = period;
+    if (period === 'custom') {
+      // Set default custom dates: last 7 days
+      if (!this.customStartDate || !this.customEndDate) {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - 6);
+        this.customStartDate = this.toISODate(start);
+        this.customEndDate = this.toISODate(end);
+      }
+    }
+    this.updateSalesChart();
+  }
+
+  onCustomDateChange(value: string, type: 'start' | 'end') {
+    if (type === 'start') this.customStartDate = value;
+    else this.customEndDate = value;
+    if (this.customStartDate && this.customEndDate) {
+      this.updateSalesChart();
+    }
+  }
+
+  private toISODate(d: Date): string {
+    return d.toISOString().split('T')[0];
+  }
+
+  private getDaysCount(): number {
+    switch (this.selectedPeriod) {
+      case '3d': return 3;
+      case '7d': return 7;
+      case '1m': return 30;
+      default: return 7;
+    }
   }
 
   private initSalesChart() {
     const ctx = this.salesChartRef.nativeElement.getContext('2d');
-    const last7Days = [...Array(7)].map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-    }).reverse();
-
-    const revenueData = last7Days.map(dateStr => {
-      // Chỉ tính hóa đơn không phải nợ nhập ngoài
-      return this.dataService.getInvoices()
-        .filter(inv => !inv.id.startsWith('MANUAL-'))
-        .reduce((sum, inv) => {
-          const invDate = new Date(inv.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-          return invDate === dateStr ? sum + (inv.totalAmount || inv.productPrice || 0) : sum;
-        }, 0);
-    });
+    const { labels, data } = this.getChartDataForPeriod();
 
     this.salesChart = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: last7Days,
+        labels,
         datasets: [{
           label: 'Doanh thu (đ)',
-          data: revenueData,
+          data,
           borderColor: '#10b981',
           backgroundColor: 'rgba(16, 185, 129, 0.1)',
           fill: true,
@@ -359,6 +504,64 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     });
   }
 
+  private updateSalesChart() {
+    if (!this.salesChart) return;
+    const { labels, data } = this.getChartDataForPeriod();
+    this.salesChart.data.labels = labels;
+    this.salesChart.data.datasets[0].data = data;
+    this.salesChart.update();
+  }
+
+  private getChartDataForPeriod(): { labels: string[], data: number[] } {
+    if (this.selectedPeriod === 'custom' && this.customStartDate && this.customEndDate) {
+      return this.buildChartDataFromRange(new Date(this.customStartDate), new Date(this.customEndDate));
+    }
+    return this.buildChartData(this.getDaysCount());
+  }
+
+  private buildChartData(days: number): { labels: string[], data: number[] } {
+    const labels = [...Array(days)].map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+    }).reverse();
+
+    const data = labels.map(dateStr => {
+      return this.dataService.getInvoices()
+        .filter(inv => !inv.id.startsWith('MANUAL-'))
+        .reduce((sum, inv) => {
+          const invDate = new Date(inv.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+          return invDate === dateStr ? sum + (inv.totalAmount || inv.productPrice || 0) : sum;
+        }, 0);
+    });
+
+    return { labels, data };
+  }
+
+  private buildChartDataFromRange(start: Date, end: Date): { labels: string[], data: number[] } {
+    const labels: string[] = [];
+    const current = new Date(start);
+    current.setHours(0, 0, 0, 0);
+    const endDate = new Date(end);
+    endDate.setHours(0, 0, 0, 0);
+
+    while (current <= endDate) {
+      labels.push(current.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }));
+      current.setDate(current.getDate() + 1);
+    }
+
+    const data = labels.map(dateStr => {
+      return this.dataService.getInvoices()
+        .filter(inv => !inv.id.startsWith('MANUAL-'))
+        .reduce((sum, inv) => {
+          const invDate = new Date(inv.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+          return invDate === dateStr ? sum + (inv.totalAmount || inv.productPrice || 0) : sum;
+        }, 0);
+    });
+
+    return { labels, data };
+  }
+
   private initInventoryChart() {
     const ctx = this.inventoryChartRef.nativeElement.getContext('2d');
     this.inventoryChart = new Chart(ctx, {
@@ -383,5 +586,11 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         }
       }
     });
+  }
+
+  private updateInventoryChart() {
+    if (!this.inventoryChart) return;
+    this.inventoryChart.data.datasets[0].data = [this.stats.soldCount, this.stats.inventoryCount];
+    this.inventoryChart.update();
   }
 }

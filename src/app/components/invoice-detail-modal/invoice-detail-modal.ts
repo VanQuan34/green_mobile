@@ -36,6 +36,7 @@ import { Invoice } from '../../models/data.models';
                 <div class="p-detail-item" *ngFor="let p of invoice.products">
                   <div class="p-main">
                     <span class="p-name">{{ p.name }}</span>
+                    <div class="imei p-specs" *ngIf="p.imei" style="margin: 6px 0;"><strong>IMEI: </strong> {{p.imei}}</div>
                     <div class="p-meta">
                       <span class="p-specs text-muted">{{ p.capacity }} | {{ p.color }}</span>
                       <strong class="buy-date" *ngIf="p.purchaseDate">{{ p.purchaseDate | date:'dd/MM/yyyy' }}</strong>
@@ -332,7 +333,7 @@ export class InvoiceDetailModalComponent implements OnInit, OnDestroy {
   @Input() invoice!: Invoice;
   @Output() close = new EventEmitter<void>();
 
-  constructor(private el: ElementRef, private renderer: Renderer2) {}
+  constructor(private el: ElementRef, private renderer: Renderer2) { }
 
   ngOnInit() {
     this.renderer.appendChild(document.body, this.el.nativeElement);

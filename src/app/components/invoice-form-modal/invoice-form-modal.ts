@@ -499,7 +499,7 @@ import { DataService } from '../../services/data.service';
     }
   `]
 })
-export class InvoiceFormModalComponent implements OnInit {
+export class InvoiceFormModalComponent implements OnInit, OnDestroy {
   @Input() products: Product[] = [];
   @Input() editInvoice?: Invoice;
   @Output() close = new EventEmitter<void>();
@@ -520,6 +520,11 @@ export class InvoiceFormModalComponent implements OnInit {
       this.invoice = JSON.parse(JSON.stringify(this.editInvoice));
       this.products = [...(this.invoice.products || [])];
       this.payFull = this.invoice.isFullyPaid;
+
+      // Đảm bảo totalAmount luôn chính xác cho các hóa đơn nợ nhập ngoài/manual
+      if (this.products.length === 0 && (!this.invoice.totalAmount || this.invoice.totalAmount === 0)) {
+        this.invoice.totalAmount = (this.invoice.debt || 0) + (this.invoice.amountPaid || 0);
+      }
     } else {
       const totalAmount = this.products.reduce((sum, p) => sum + p.sellingPrice, 0);
       this.invoice = {
@@ -532,7 +537,7 @@ export class InvoiceFormModalComponent implements OnInit {
         amountPaid: totalAmount,
         debt: 0,
         isFullyPaid: true,
-        createdAt: new Date()
+        createdAt: new Date().toISOString()
       };
     }
   }
@@ -582,6 +587,7 @@ export class InvoiceFormModalComponent implements OnInit {
   }
 
   calculateDebt() {
+    if (this.products.length === 0) return;
     this.invoice.debt = Math.max(0, this.totalAmount - (this.invoice.amountPaid || 0));
     this.invoice.isFullyPaid = this.invoice.debt === 0;
   }
@@ -616,9 +622,11 @@ export class InvoiceFormModalComponent implements OnInit {
   }
 
   selectCustomer(customer: any) {
+    this.invoice.buyer_id = customer.id || customer.buyer_id;
     this.invoice.buyerName = customer.name;
     this.invoice.buyerPhone = customer.phone;
     this.invoice.buyerAddress = customer.address;
+    if (customer.email) this.invoice.buyer_email = customer.email;
     this.showSuggestions = false;
   }
 
@@ -634,7 +642,6 @@ export class InvoiceFormModalComponent implements OnInit {
       return;
     }
     this.isSaving = true;
-    this.calculateDebt();
     this.confirm.emit(this.invoice);
   }
 

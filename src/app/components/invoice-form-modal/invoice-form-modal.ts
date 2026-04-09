@@ -55,6 +55,7 @@ import { DataService } from '../../services/data.service';
                 (input)="onCustomerSearch()"
                 required
                 autocomplete="off"
+                [disabled]="!!editInvoice"
               >
               <div class="error-text animate-fade-in" *ngIf="buyerName.invalid && (buyerName.dirty || buyerName.touched)">
                 Vui lòng nhập tên khách hàng
@@ -75,7 +76,7 @@ import { DataService } from '../../services/data.service';
 
             <div class="form-group">
               <label class="required">Số điện thoại</label>
-              <input type="text" [(ngModel)]="invoice.buyerPhone" name="buyerPhone" #buyerPhone="ngModel" placeholder="0xxx..." required>
+              <input type="text" [(ngModel)]="invoice.buyerPhone" name="buyerPhone" #buyerPhone="ngModel" placeholder="0xxx..." required [disabled]="!!editInvoice">
               <div class="error-text animate-fade-in" *ngIf="buyerPhone.invalid && (buyerPhone.dirty || buyerPhone.touched)">
                 Vui lòng nhập số điện thoại
               </div>
@@ -83,7 +84,7 @@ import { DataService } from '../../services/data.service';
 
             <div class="form-group">
               <label class="required">Địa chỉ</label>
-              <input type="text" [(ngModel)]="invoice.buyerAddress" name="buyerAddress" #buyerAddress="ngModel" placeholder="Địa chỉ giao hàng/liên hệ..." required>
+              <input type="text" [(ngModel)]="invoice.buyerAddress" name="buyerAddress" #buyerAddress="ngModel" placeholder="Địa chỉ giao hàng/liên hệ..." required [disabled]="!!editInvoice">
               <div class="error-text animate-fade-in" *ngIf="buyerAddress.invalid && (buyerAddress.dirty || buyerAddress.touched)">
                 Vui lòng nhập địa chỉ khách hàng
               </div>
@@ -466,6 +467,13 @@ import { DataService } from '../../services/data.service';
     input.ng-invalid.ng-touched {
       border-color: #ef4444 !important;
       background: #fffcfc;
+    }
+
+    input:disabled {
+      background: #f3f4f6;
+      cursor: not-allowed;
+      color: var(--text-muted);
+      opacity: 0.8;
     }
 
     .modal-footer {

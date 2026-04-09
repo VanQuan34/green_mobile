@@ -1,6 +1,8 @@
-import { Component, EventEmitter, Input, Output, OnInit, OnDestroy, ElementRef, Renderer2 } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit, OnDestroy, ElementRef, Renderer2, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Invoice } from '../../models/data.models';
+import { DataService } from '../../services/data.service';
+import { forkJoin, finalize } from 'rxjs';
 
 @Component({
   selector: 'app-invoice-detail-modal',
@@ -86,7 +88,16 @@ import { Invoice } from '../../models/data.models';
         </div>
 
         <footer class="modal-footer">
-          <button class="btn btn-primary" (click)="onClose()">Đóng</button>
+          <button class="btn btn-outline" (click)="onClose()" [disabled]="isProcessing">Đóng</button>
+          <button 
+            *ngIf="invoice.debt > 0" 
+            class="btn btn-primary btn-complete" 
+            (click)="onCompletePayment()" 
+            [disabled]="isProcessing"
+          >
+            <span class="spinner" *ngIf="isProcessing"></span>
+            {{ isProcessing ? 'Đang xử lý...' : 'Hoàn tất thanh toán' }}
+          </button>
         </footer>
       </div>
     </div>
@@ -323,6 +334,31 @@ import { Invoice } from '../../models/data.models';
       border-top: 1px solid var(--border);
       display: flex;
       justify-content: flex-end;
+      gap: 1rem;
+    }
+
+    .btn-complete {
+      background: var(--green);
+      border-color: var(--green);
+    }
+
+    .btn-complete:hover {
+      background: #059669;
+    }
+
+    .spinner {
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+      margin-right: 0.5rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
 
     .text-green { color: var(--green); }
@@ -333,6 +369,9 @@ export class InvoiceDetailModalComponent implements OnInit, OnDestroy {
   @Input() invoice!: Invoice;
   @Output() close = new EventEmitter<void>();
 
+  isProcessing = false;
+  private dataService = inject(DataService);
+
   constructor(private el: ElementRef, private renderer: Renderer2) { }
 
   ngOnInit() {
@@ -341,6 +380,40 @@ export class InvoiceDetailModalComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.renderer.removeChild(document.body, this.el.nativeElement);
+  }
+
+  onCompletePayment() {
+    const confirmMsg = `Xác nhận hoàn tất thanh toán số tiền ${new Intl.NumberFormat().format(this.invoice.debt)}đ cho khách hàng ${this.invoice.buyerName}?`;
+    if (!confirm(confirmMsg)) return;
+
+    this.isProcessing = true;
+
+    // Xác định danh sách hóa đơn cần cập nhật
+    const invoicesToUpdate = this.invoice.originalInvoices || [this.invoice];
+    
+    // Tạo mảng các observable cập nhật
+    const updates = invoicesToUpdate.map(inv => {
+      const updatedInv = { 
+        ...inv, 
+        amountPaid: inv.totalAmount, 
+        debt: 0, 
+        isFullyPaid: true 
+      };
+      return this.dataService.updateInvoice(updatedInv);
+    });
+
+    forkJoin(updates).pipe(
+      finalize(() => this.isProcessing = false)
+    ).subscribe({
+      next: () => {
+        // Sau khi hoàn tất, DataService đã gửi thông báo thành công cho từng hóa đơn
+        // Ta đóng modal để danh sách bên dưới React lại dữ liệu mới
+        this.onClose();
+      },
+      error: (err) => {
+        console.error('Lỗi khi hoàn tất thanh toán hàng loạt:', err);
+      }
+    });
   }
 
   onClose() {

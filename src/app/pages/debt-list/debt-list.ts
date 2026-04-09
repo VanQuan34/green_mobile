@@ -377,7 +377,11 @@ export class DebtListComponent implements OnInit {
         }] : []);
 
       if (!groups.has(key)) {
-        groups.set(key, { ...inv, products: currentInvProducts });
+        groups.set(key, { 
+          ...inv, 
+          products: currentInvProducts,
+          originalInvoices: [inv] 
+        });
       } else {
         const group = groups.get(key)!;
         group.totalAmount += (inv.totalAmount || inv.productPrice || 0);
@@ -386,6 +390,9 @@ export class DebtListComponent implements OnInit {
 
         // Gộp sản phẩm kèm ngày mua
         group.products = [...(group.products || []), ...currentInvProducts];
+        
+        // Lưu trữ hóa đơn gốc
+        group.originalInvoices = [...(group.originalInvoices || []), inv];
 
         // Giữ ngày mới nhất cho meta data chung của nhóm
         if (new Date(inv.createdAt) > new Date(group.createdAt)) {

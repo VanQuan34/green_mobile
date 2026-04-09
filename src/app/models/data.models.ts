@@ -36,6 +36,7 @@ export interface Invoice {
   debt: number;
   isFullyPaid: boolean;
   createdAt: Date | string;
+  originalInvoices?: Invoice[]; // Thêm để hỗ trợ gộp công nợ
 }
 
 export interface MediaItem {

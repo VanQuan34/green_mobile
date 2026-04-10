@@ -891,10 +891,10 @@ function gm_handle_get_dashboard_stats() {
     $sold_count = (int)$wpdb->get_var("SELECT COUNT(*) FROM $table_products WHERE sale = 1") ?: 0;
     $inventory_count = (int)$wpdb->get_var("SELECT COUNT(*) FROM $table_products WHERE sale = 0") ?: 0;
     
-    // 2. Tổng vốn (Giá gốc của TẤT CẢ sản phẩm)
+    // 2. Tổng vốn (Giá gốc của TOÀN BỘ sản phẩm: cả đã bán và chưa bán)
     $total_capital = (int)$wpdb->get_var("SELECT SUM(original_price) FROM $table_products") ?: 0;
     
-    // 3. Doanh thu dự kiến (Giá bán của TẤT CẢ sản phẩm nếu bán sạch)
+    // 3. Doanh thu dự kiến (Giá bán của TOÀN BỘ sản phẩm nếu bán sạch)
     $total_expected_revenue = (int)$wpdb->get_var("SELECT SUM(selling_price) FROM $table_products") ?: 0;
     
     // 4. Doanh thu và thực thu từ hóa đơn (Loại bỏ các hóa đơn nợ nhập ngoài MANUAL-)

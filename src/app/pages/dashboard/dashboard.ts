@@ -422,11 +422,18 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       }
     }, 0);
 
-    this.stats.totalInventoryValue = unsoldCapital + soldCapital;
-
     // Doanh thu dự kiến = Doanh thu thực tế (đã bán) + Tổng giá bán sản phẩm trong kho (chưa bán)
-    const currentUnsoldRevenue = unsoldProducts.reduce((sum, p) => sum + (p.sellingPrice || 0), 0);
-    this.stats.expectedTotalRevenue = this.stats.totalRevenue + currentUnsoldRevenue;
+    // ƯU TIÊN: Nếu có dữ liệu từ API, ta không ghi đè các trường tổng vốn và doanh thu dự kiến vì API có dữ liệu toàn bộ lịch sử
+    const apiStats = this.dataService.getLatestStats();
+    if (apiStats) {
+      this.stats.totalInventoryValue = apiStats.totalCapital;
+      this.stats.expectedTotalRevenue = apiStats.totalExpectedRevenue;
+    } else {
+      // Fallback nếu chưa có API (chỉ tính được dựa trên dữ liệu hiện có trong app)
+      const currentUnsoldRevenue = unsoldProducts.reduce((sum, p) => sum + (p.sellingPrice || 0), 0);
+      this.stats.totalInventoryValue = unsoldCapital + soldCapital;
+      this.stats.expectedTotalRevenue = this.stats.totalRevenue + currentUnsoldRevenue;
+    }
 
     // Tính lợi nhuận: Chỉ tính trên hóa đơn thực tế
     this.stats.totalProfit = actualInvoices.reduce((sum, inv) => {

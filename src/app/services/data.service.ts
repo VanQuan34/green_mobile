@@ -97,6 +97,9 @@ export class DataService {
       })
     );
   }
+  getLatestStats(): DashboardStats | null {
+    return this.statsSubject.value;
+  }
 
   // Product Methods
   getProducts(): Product[] {

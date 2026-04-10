@@ -1,5 +1,5 @@
-import { Component, EventEmitter, OnInit, Output, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, EventEmitter, OnInit, OnDestroy, Output, inject, ElementRef, Renderer2 } from '@angular/core';
+import { CommonModule, DOCUMENT } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { MediaItem } from '../../models/data.models';
@@ -12,8 +12,11 @@ import { Subject, debounceTime, distinctUntilChanged, finalize } from 'rxjs';
   templateUrl: './media-store.component.html',
   styleUrls: ['./media-store.component.css']
 })
-export class MediaStoreComponent implements OnInit {
+export class MediaStoreComponent implements OnInit, OnDestroy {
   private dataService = inject(DataService);
+  private el = inject(ElementRef);
+  private renderer = inject(Renderer2);
+  private document = inject(DOCUMENT);
 
   @Output() select = new EventEmitter<string>();
   @Output() close = new EventEmitter<void>();
@@ -33,6 +36,7 @@ export class MediaStoreComponent implements OnInit {
   private searchSubject = new Subject<string>();
 
   ngOnInit() {
+    this.renderer.appendChild(this.document.body, this.el.nativeElement);
     this.loadMedia();
 
     this.searchSubject.pipe(
@@ -109,5 +113,9 @@ export class MediaStoreComponent implements OnInit {
 
   closeModal() {
     this.close.emit();
+  }
+
+  ngOnDestroy() {
+    this.renderer.removeChild(this.document.body, this.el.nativeElement);
   }
 }

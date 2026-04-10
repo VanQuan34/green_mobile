@@ -2,6 +2,8 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { DataService } from '../../services/data.service';
+import { inject } from '@angular/core';
 
 @Component({
   selector: 'app-layout',
@@ -14,7 +16,11 @@ import { AuthService } from '../../services/auth.service';
         <div class="sidebar-header">
           <div class="logo">
             <span class="dot"></span>
-            <h2>Di Động Xanh</h2>
+            <ng-container *ngIf="settings$ | async as settings">
+              <h2 *ngIf="(settings.logo_type || 'text') === 'text'">{{ settings.logo_value || '' }}</h2>
+              <img *ngIf="settings.logo_type === 'image'" [src]="settings.logo_value" class="logo-img" alt="Logo">
+            </ng-container>
+            <h2 *ngIf="!(settings$ | async)">Di Động Xanh</h2>
           </div>
           <button class="menu-close-btn" (click)="toggleMobileMenu()">✕</button>
         </div>
@@ -133,6 +139,13 @@ import { AuthService } from '../../services/auth.service';
       font-size: 1.25rem;
       font-weight: 700;
       color: var(--text-main);
+      margin: 0;
+    }
+
+    .logo-img {
+      height: 32px;
+      max-width: 160px;
+      object-fit: contain;
     }
     
     .sidebar-nav {
@@ -297,7 +310,9 @@ import { AuthService } from '../../services/auth.service';
   `]
 })
 export class LayoutComponent {
+  private dataService = inject(DataService);
   isMobileMenuOpen = false;
+  settings$ = this.dataService.settings$;
 
   constructor(private authService: AuthService, private router: Router) {}
 

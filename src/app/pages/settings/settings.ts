@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { AuthService } from '../../services/auth.service';
 import { ThemeService } from '../../services/theme.service';
+import { MediaStoreComponent } from '../../components/media-store/media-store.component';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MediaStoreComponent],
   template: `
     <div class="settings-page animate-fade-in">
       <div class="settings-grid">
@@ -131,6 +132,106 @@ import { ThemeService } from '../../services/theme.service';
                 <div class="status-badge success">Trạng thái</div>
               </div>
             </div>
+          </div>
+          
+          <div class="card-footer">
+            <button 
+              class="btn btn-primary" 
+              (click)="saveSettings()" 
+              [disabled]="loading"
+            >
+              {{ loading ? 'Đang lưu...' : 'Lưu cấu hình giao diện' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Logo Configuration Section [NEW] -->
+        <div class="settings-card glass-card">
+          <div class="card-header">
+            <span class="icon">🏷️</span>
+            <div class="header-text">
+              <h3>Cấu hình Logo</h3>
+              <p>Thay đổi văn bản hoặc hình ảnh thương hiệu hiển thị trên app.</p>
+            </div>
+          </div>
+          
+          <div class="card-body">
+            <div class="form-group mb-4">
+              <label>Loại Logo</label>
+              <div class="type-selector">
+                <label class="radio-label">
+                  <input type="radio" name="logo_type" [(ngModel)]="settings.logo_type" (change)="onLogoTypeChange()" value="text">
+                  <span class="radio-custom"></span>
+                  Văn bản
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="logo_type" [(ngModel)]="settings.logo_type" (change)="onLogoTypeChange()" value="image">
+                  <span class="radio-custom"></span>
+                  Hình ảnh
+                </label>
+              </div>
+            </div>
+
+            <!-- Text Logo Input -->
+            <div class="form-group" *ngIf="settings.logo_type === 'text'">
+              <label for="logo_text">Văn bản Logo</label>
+              <div class="input-with-icon">
+                <span class="input-icon">✍️</span>
+                <input 
+                  id="logo_text" 
+                  type="text" 
+                  [(ngModel)]="settings.logo_value" 
+                  placeholder="Ví dụ: Di Động Xanh"
+                >
+              </div>
+            </div>
+
+            <!-- Image Logo Selector -->
+            <div class="form-group" *ngIf="settings.logo_type === 'image'">
+              <label>Hình ảnh Logo</label>
+              <div class="logo-preview-container">
+                <div class="logo-preview" *ngIf="settings.logo_value">
+                  <img [src]="settings.logo_value" alt="Logo Preview">
+                </div>
+                <div class="logo-placeholder" *ngIf="!settings.logo_value">
+                  <span>Chưa chọn ảnh</span>
+                </div>
+                <button class="btn btn-outline btn-sm" (click)="showLogoPicker = true">
+                  {{ settings.logo_value ? 'Thay đổi ảnh' : 'Chọn ảnh từ thư viện' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Logo Preview (Live) -->
+            <div class="preview-area mt-4">
+              <div class="preview-box">
+                <span class="preview-label">Xem trước thực tế:</span>
+                <div class="sidebar-logo-preview">
+                  <span class="dot"></span>
+                  <h2 *ngIf="settings.logo_type === 'text'">{{ settings.logo_value || 'Di Động Xanh' }}</h2>
+                  <div *ngIf="settings.logo_type === 'image' && !settings.logo_value" class="image-placeholder-preview">
+                    <span>Trống</span>
+                  </div>
+                  <img *ngIf="settings.logo_type === 'image' && settings.logo_value" [src]="settings.logo_value" alt="Logo">
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <app-media-store 
+            *ngIf="showLogoPicker" 
+            (select)="onLogoSelected($event)" 
+            (close)="showLogoPicker = false"
+          ></app-media-store>
+
+          <div class="card-footer">
+            <button 
+              class="btn btn-primary" 
+              (click)="saveSettings()" 
+              [disabled]="loading"
+            >
+              {{ loading ? 'Đang lưu...' : 'Lưu cấu hình Logo' }}
+            </button>
           </div>
         </div>
 
@@ -443,21 +544,113 @@ import { ThemeService } from '../../services/theme.service';
       }
     }
 
-    @media (max-width: 600px) {
-      .info-list {
-        grid-template-columns: 1fr;
-      }
+
+    /* Logo Specific Styles */
+    .type-selector {
+      display: flex;
+      gap: 2rem;
+      margin-top: 0.5rem;
     }
+
+    .radio-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .logo-preview-container {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 1rem;
+      background: var(--bg-main);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .logo-preview {
+      height: 40px;
+      background: white;
+      padding: 5px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+    }
+
+    .logo-preview img {
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .logo-placeholder {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .sidebar-logo-preview {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1.25rem;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    .sidebar-logo-preview .dot {
+      width: 8px;
+      height: 8px;
+      background-color: var(--primary);
+      border-radius: 50%;
+    }
+
+    .sidebar-logo-preview h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin: 0;
+      color: var(--text-main);
+    }
+
+    .sidebar-logo-preview img {
+      height: 24px;
+      object-fit: contain;
+    }
+
+    .image-placeholder-preview {
+      height: 24px;
+      width: 80px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .mb-4 { margin-bottom: 1.5rem; }
+    .mt-4 { margin-top: 1.5rem; }
   `]
 })
 export class SettingsComponent implements OnInit {
   settings: any = {
     google_sheet_url: '',
-    primary_color: '#10b981'
+    primary_color: '#10b981',
+    logo_type: 'text',
+    logo_value: 'Di Động Xanh'
   };
   currentUser: any;
   presets: any[] = [];
   loading = false;
+  showLogoPicker = false;
 
   constructor(
     private dataService: DataService,
@@ -475,14 +668,24 @@ export class SettingsComponent implements OnInit {
   loadSettings() {
     this.dataService.getSettings().subscribe(res => {
       this.settings.google_sheet_url = res.google_sheet_url || '';
+      this.settings.logo_type = res.logo_type || 'text';
+      this.settings.logo_value = res.logo_value || 'Di Động Xanh';
     });
   }
 
   saveSettings() {
+    // Validate Logo
+    if (this.settings.logo_type === 'image' && (!this.settings.logo_value || !this.settings.logo_value.startsWith('http'))) {
+      alert('Vui lòng chọn hình ảnh logo từ thư viện trước khi lưu!');
+      return;
+    }
+
     this.loading = true;
-    // Chỉ lưu các cấu hình cần thiết lên DB (như Google Sheet URL)
+    // Lưu tất cả cấu hình lên DB
     const dbSettings = {
-      google_sheet_url: this.settings.google_sheet_url
+      google_sheet_url: this.settings.google_sheet_url,
+      logo_type: this.settings.logo_type,
+      logo_value: this.settings.logo_value
     };
     
     this.dataService.updateSettings(dbSettings)
@@ -500,9 +703,22 @@ export class SettingsComponent implements OnInit {
     this.themeService.applyTheme(this.settings.primary_color);
   }
 
+  onLogoTypeChange() {
+    // Nếu chuyển sang ảnh mà giá trị hiện tại không phải URL (có thể là text cũ)
+    // thì xóa đi để bắt người dùng chọn ảnh mới
+    if (this.settings.logo_type === 'image' && this.settings.logo_value && !this.settings.logo_value.startsWith('http')) {
+      this.settings.logo_value = '';
+    }
+  }
+
   applyPreset(color: string) {
     this.settings.primary_color = color;
     this.onColorChange();
+  }
+
+  onLogoSelected(url: string) {
+    this.settings.logo_value = url;
+    this.showLogoPicker = false;
   }
 
   getUserInitials(): string {

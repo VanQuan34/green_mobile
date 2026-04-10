@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { DataService } from '../../services/data.service';
+import { inject } from '@angular/core';
 
 @Component({
   selector: 'app-login',
@@ -14,7 +16,11 @@ import { AuthService } from '../../services/auth.service';
         <div class="login-header">
           <div class="logo">
             <span class="dot"></span>
-            <h1>Di Động Xanh</h1>
+            <ng-container *ngIf="settings$ | async as settings">
+              <h1 *ngIf="(settings.logo_type || 'text') === 'text'">{{ settings.logo_value || 'Di Động Xanh' }}</h1>
+              <img *ngIf="settings.logo_type === 'image'" [src]="settings.logo_value" class="logo-img" alt="Logo">
+            </ng-container>
+            <h1 *ngIf="!(settings$ | async)">Di Động Xanh</h1>
           </div>
           <p>Chào mừng quay trở lại!</p>
         </div>
@@ -52,7 +58,7 @@ import { AuthService } from '../../services/auth.service';
         </form>
         
         <div class="login-footer">
-          <p>© 2026 Di Động Xanh - Hệ thống Quản trị</p>
+          <p>© 2026 {{ (settings$ | async)?.logo_value || 'Di Động Xanh' }} - Hệ thống Quản trị</p>
         </div>
       </div>
     </div>
@@ -97,6 +103,13 @@ import { AuthService } from '../../services/auth.service';
       font-size: 1.5rem;
       font-weight: 700;
       color: #1e293b;
+      margin: 0;
+    }
+
+    .logo-img {
+      height: 48px;
+      max-width: 240px;
+      object-fit: contain;
     }
     
     p {
@@ -166,10 +179,12 @@ import { AuthService } from '../../services/auth.service';
   `]
 })
 export class LoginComponent {
+  private dataService = inject(DataService);
   username = '';
   password = '';
   error = '';
   loading = false;
+  settings$ = this.dataService.settings$;
 
   constructor(private authService: AuthService, private router: Router) {}
 

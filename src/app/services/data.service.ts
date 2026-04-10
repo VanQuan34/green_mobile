@@ -1,8 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, map, of, tap, catchError, throwError, finalize } from 'rxjs';
+import { BehaviorSubject, Observable, map, of, tap, catchError, throwError, finalize, timer, forkJoin, timeout } from 'rxjs';
 import { Product, Invoice, MediaItem, DashboardStats, Customer } from '../models/data.models';
 import { HttpClient } from '@angular/common/http';
 import { ToastService } from './toast.service';
+import { AuthService } from './auth.service';
 
 @Injectable({
   providedIn: 'root'
@@ -11,11 +12,14 @@ export class DataService {
   private apiUrl = process.env['NG_APP_API_URL'] || 'https://quantv.store/wp-json/gm/v1';
   private http = inject(HttpClient);
   private toast = inject(ToastService);
+  private authService = inject(AuthService);
 
   private productsSubject = new BehaviorSubject<Product[]>([]);
   private invoicesSubject = new BehaviorSubject<Invoice[]>([]);
   private customersSubject = new BehaviorSubject<Customer[]>([]);
   private statsSubject = new BehaviorSubject<DashboardStats | null>(null);
+  private settingsSubject = new BehaviorSubject<any>({});
+  private initializedSubject = new BehaviorSubject<boolean>(false);
 
   customers$ = this.customersSubject.asObservable();
   products$ = this.productsSubject.asObservable().pipe(
@@ -23,12 +27,33 @@ export class DataService {
   );
   invoices$ = this.invoicesSubject.asObservable();
   stats$ = this.statsSubject.asObservable();
+  settings$ = this.settingsSubject.asObservable();
+  initialized$ = this.initializedSubject.asObservable();
 
   constructor() {
-    this.loadInitialData();
+    // Không gọi loadInitialData ở đây nữa
+    this.authService.isLoggedIn$.subscribe(isLoggedIn => {
+      if (isLoggedIn) {
+        this.loadInitialData();
+      } else {
+        this.clearData();
+        // Mặc định loading mỗi lần vào site là 500ms rồi mới hiện trang login
+        timer(500).subscribe(() => this.initializedSubject.next(true));
+      }
+    });
+  }
+
+  private clearData() {
+    this.productsSubject.next([]);
+    this.invoicesSubject.next([]);
+    this.customersSubject.next([]);
+    this.statsSubject.next(null);
+    this.settingsSubject.next({});
   }
 
   loadInitialData() {
+    // Đảm bảo chỉ load khi thực sự đã login và chưa có dữ liệu quan trọng
+    // Hoặc cho phép load lại mỗi khi login mới
     this.loadApiData();
   }
 
@@ -50,6 +75,17 @@ export class DataService {
 
     // Tải thống kê dashboard
     this.getDashboardStats().subscribe();
+
+    // Tải cấu hình hệ thống - Đây là bước quan trọng nhất để ẩn splash screen
+    // Chờ tối thiểu 500ms, tối đa 5000ms
+    forkJoin([
+      this.getSettings().pipe(catchError(() => of(null))),
+      timer(1000)
+    ]).pipe(
+      timeout(5000),
+      catchError(() => of(null)), // Nếu timeout thì cũng coi như xong để vào app
+      finalize(() => this.initializedSubject.next(true))
+    ).subscribe();
   }
 
   getDashboardStats(): Observable<DashboardStats> {
@@ -227,6 +263,7 @@ export class DataService {
   // Settings Methods
   getSettings(): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/settings`).pipe(
+      tap(settings => this.settingsSubject.next(settings)),
       catchError(err => {
         this.toast.error('Lỗi khi tải cấu hình');
         return throwError(() => err);
@@ -237,6 +274,8 @@ export class DataService {
   updateSettings(settings: any): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/settings`, settings).pipe(
       tap(() => {
+        const current = this.settingsSubject.value;
+        this.settingsSubject.next({ ...current, ...settings });
         this.toast.success('Đã cập nhật cấu hình hệ thống');
       }),
       catchError(err => {

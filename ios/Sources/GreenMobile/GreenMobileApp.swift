@@ -27,7 +27,15 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // Messaging Delegate
         Messaging.messaging().delegate = self
         
+        // Clear badge on launch
+        UIApplication.shared.applicationIconBadgeNumber = 0
+        
         return true
+    }
+    
+    func applicationDidBecomeActive(_ application: UIApplication) {
+        // Clear badge when app becomes active
+        UIApplication.shared.applicationIconBadgeNumber = 0
     }
     
     // Remote Notification Registration
@@ -51,6 +59,16 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     // Foreground Notification
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([[.banner, .list, .sound]])
+    }
+    
+    // Handle notification click
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        
+        // Clear badge and notifications when user clicks
+        UIApplication.shared.applicationIconBadgeNumber = 0
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+        
+        completionHandler()
     }
 }
 

@@ -10,23 +10,28 @@
 		2133A7C24E7238AB846414D0 /* ProductListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E89451DCBB1E1C98A7821E /* ProductListView.swift */; };
 		2F0A06783C2CFEAEBAA55F9E /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4682C92B101EFA4B197C71CD /* Theme.swift */; };
 		3EA01A265B819F0441A71545 /* DataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 431AB190B0F1987F09476F90 /* DataManager.swift */; };
+		4347CF0252D02F961BEF53B8 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 0AABA8999738BCD21B8703A8 /* FirebaseAnalytics */; };
 		4E1CB0BB906067613D272635 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7894C9185DEE8F3717DD20B7 /* SettingsView.swift */; };
+		595DD04A61DACFAAF9E85B13 /* CustomerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEB2F1390992FB5628932738 /* CustomerListView.swift */; };
 		70041E5F589423618A508BD2 /* AddProductFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97EE34915CFB6B3C20FAF132 /* AddProductFormView.swift */; };
 		8DF8FEE881CFDA4A3FD135C4 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 430B6845F83C6968B896FDA7 /* LoginView.swift */; };
 		9B6155A89B45E578F2D1DACD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9B97D73632B3773CB9CFCD63 /* Assets.xcassets */; };
 		9D532B08CA1E7B8520C3B554 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52AEF329A2D47F253EA5C7F2 /* MainTabView.swift */; };
+		A6516ED7BC9F6C6C5BDE2CD4 /* InvoiceFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DA5FD5339149AE38AD6D9F /* InvoiceFormView.swift */; };
 		AF0CBF444AE6A2E1941B0AE3 /* DataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DB718B7A83B9F609F1A9019 /* DataModels.swift */; };
 		B290259BA95B1D77EF7523C9 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 698F7B9F15325F608F9CF7E0 /* AuthManager.swift */; };
 		BBD2920344949A581DA3A5B8 /* GreenMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33A2A75628FE313DBDF8D953 /* GreenMobileApp.swift */; };
 		C1A604C7DB169DE54CA26B7E /* Config.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ED0508397B24ECD068CA109 /* Config.swift */; };
 		C1C561C3B281197BD61CCAE3 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26885246210BAC7D5E331638 /* DashboardView.swift */; };
 		C79886EBF17B2044C541EE41 /* InvoiceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BC67138BC5218BD3E45729 /* InvoiceListView.swift */; };
-		E79886EBF17B2044C541EE99 /* InvoiceFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5BC67138BC5218BD3E45799 /* InvoiceFormView.swift */; };
-		F79886EBF17B2044C541EE01 /* CustomerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BC67138BC5218BD3E45701 /* CustomerListView.swift */; };
+		D590A6F509D454ECAD5CCC5D /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 53C092F89A672B363C73D9CF /* FirebaseMessaging */; };
+		E22F0DC92F3640EE9CF9AD07 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 2F8D4613667FF69D3258F24F /* GoogleService-Info.plist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		26885246210BAC7D5E331638 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		2DE427012F8CD2930088063C /* GreenMobile.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GreenMobile.entitlements; sourceTree = SOURCE_ROOT; };
+		2F8D4613667FF69D3258F24F /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		33A2A75628FE313DBDF8D953 /* GreenMobileApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GreenMobileApp.swift; sourceTree = "<group>"; };
 		430B6845F83C6968B896FDA7 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		431AB190B0F1987F09476F90 /* DataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataManager.swift; sourceTree = "<group>"; };
@@ -39,19 +44,33 @@
 		8DB718B7A83B9F609F1A9019 /* DataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataModels.swift; sourceTree = "<group>"; };
 		97EE34915CFB6B3C20FAF132 /* AddProductFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProductFormView.swift; sourceTree = "<group>"; };
 		9B97D73632B3773CB9CFCD63 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AEB2F1390992FB5628932738 /* CustomerListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomerListView.swift; sourceTree = "<group>"; };
+		C9DA5FD5339149AE38AD6D9F /* InvoiceFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceFormView.swift; sourceTree = "<group>"; };
 		D00B7C34DC84F778D887A91A /* GreenMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GreenMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D4E89451DCBB1E1C98A7821E /* ProductListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductListView.swift; sourceTree = "<group>"; };
 		D5BC67138BC5218BD3E45729 /* InvoiceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceListView.swift; sourceTree = "<group>"; };
-		F5BC67138BC5218BD3E45799 /* InvoiceFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceFormView.swift; sourceTree = "<group>"; };
-		D5BC67138BC5218BD3E45701 /* CustomerListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomerListView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F6A35DAF565B13DCF7D07864 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4347CF0252D02F961BEF53B8 /* FirebaseAnalytics in Frameworks */,
+				D590A6F509D454ECAD5CCC5D /* FirebaseMessaging in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		1B9235DD61B309701B6DEE54 /* GreenMobile */ = {
 			isa = PBXGroup;
 			children = (
+				2DE427012F8CD2930088063C /* GreenMobile.entitlements */,
 				9B97D73632B3773CB9CFCD63 /* Assets.xcassets */,
 				6ED0508397B24ECD068CA109 /* Config.swift */,
+				2F8D4613667FF69D3258F24F /* GoogleService-Info.plist */,
 				33A2A75628FE313DBDF8D953 /* GreenMobileApp.swift */,
 				7B0553DBF53517D823BC3771 /* Info.plist */,
 				4682C92B101EFA4B197C71CD /* Theme.swift */,
@@ -67,14 +86,14 @@
 			isa = PBXGroup;
 			children = (
 				97EE34915CFB6B3C20FAF132 /* AddProductFormView.swift */,
+				AEB2F1390992FB5628932738 /* CustomerListView.swift */,
 				26885246210BAC7D5E331638 /* DashboardView.swift */,
-				F5BC67138BC5218BD3E45799 /* InvoiceFormView.swift */,
+				C9DA5FD5339149AE38AD6D9F /* InvoiceFormView.swift */,
 				D5BC67138BC5218BD3E45729 /* InvoiceListView.swift */,
 				430B6845F83C6968B896FDA7 /* LoginView.swift */,
 				52AEF329A2D47F253EA5C7F2 /* MainTabView.swift */,
 				D4E89451DCBB1E1C98A7821E /* ProductListView.swift */,
 				7894C9185DEE8F3717DD20B7 /* SettingsView.swift */,
-				D5BC67138BC5218BD3E45701 /* CustomerListView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -121,6 +140,7 @@
 			buildPhases = (
 				E99A8205F057F0C13BD416B7 /* Sources */,
 				64BF74A9266F82ADD195FC05 /* Resources */,
+				F6A35DAF565B13DCF7D07864 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -128,6 +148,8 @@
 			);
 			name = GreenMobile;
 			packageProductDependencies = (
+				0AABA8999738BCD21B8703A8 /* FirebaseAnalytics */,
+				53C092F89A672B363C73D9CF /* FirebaseMessaging */,
 			);
 			productName = GreenMobile;
 			productReference = D00B7C34DC84F778D887A91A /* GreenMobile.app */;
@@ -151,6 +173,9 @@
 			);
 			mainGroup = AB0C92F9CB25FC7762161165;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5A9214490720A16BFD67C07D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = EEF487CEA842972579D2C1EE /* Products */;
 			projectDirPath = "";
@@ -167,6 +192,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9B6155A89B45E578F2D1DACD /* Assets.xcassets in Resources */,
+				E22F0DC92F3640EE9CF9AD07 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -180,18 +206,18 @@
 				70041E5F589423618A508BD2 /* AddProductFormView.swift in Sources */,
 				B290259BA95B1D77EF7523C9 /* AuthManager.swift in Sources */,
 				C1A604C7DB169DE54CA26B7E /* Config.swift in Sources */,
+				595DD04A61DACFAAF9E85B13 /* CustomerListView.swift in Sources */,
 				C1C561C3B281197BD61CCAE3 /* DashboardView.swift in Sources */,
 				3EA01A265B819F0441A71545 /* DataManager.swift in Sources */,
 				AF0CBF444AE6A2E1941B0AE3 /* DataModels.swift in Sources */,
 				BBD2920344949A581DA3A5B8 /* GreenMobileApp.swift in Sources */,
+				A6516ED7BC9F6C6C5BDE2CD4 /* InvoiceFormView.swift in Sources */,
 				C79886EBF17B2044C541EE41 /* InvoiceListView.swift in Sources */,
-				E79886EBF17B2044C541EE99 /* InvoiceFormView.swift in Sources */,
 				8DF8FEE881CFDA4A3FD135C4 /* LoginView.swift in Sources */,
 				9D532B08CA1E7B8520C3B554 /* MainTabView.swift in Sources */,
 				2133A7C24E7238AB846414D0 /* ProductListView.swift in Sources */,
 				4E1CB0BB906067613D272635 /* SettingsView.swift in Sources */,
 				2F0A06783C2CFEAEBAA55F9E /* Theme.swift in Sources */,
-				F79886EBF17B2044C541EE01 /* CustomerListView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -203,7 +229,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_ENTITLEMENTS = GreenMobile.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = Z532W7ANP2;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -213,7 +241,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.reactnative.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mobio.sdk.react;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.1;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -342,7 +371,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_ENTITLEMENTS = GreenMobile.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = Z532W7ANP2;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -352,7 +383,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.reactnative.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mobio.sdk.react;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.1;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -381,6 +413,30 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5A9214490720A16BFD67C07D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 10.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0AABA8999738BCD21B8703A8 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A9214490720A16BFD67C07D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		53C092F89A672B363C73D9CF /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A9214490720A16BFD67C07D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 86D9EE427B2638A935F1F981 /* Project object */;
 }

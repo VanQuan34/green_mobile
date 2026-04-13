@@ -264,6 +264,13 @@ function gm_register_rest_routes() {
         'callback' => 'gm_handle_get_dashboard_stats',
         'permission_callback' => '__return_true'
     ));
+
+    // FCM Test Endpoint
+    register_rest_route($namespace, '/test-fcm', array(
+        'methods'  => 'GET',
+        'callback' => 'gm_handle_test_fcm',
+        'permission_callback' => '__return_true'
+    ));
 }
 
 /**
@@ -596,6 +603,21 @@ function gm_handle_create_invoice($request) {
             );
             gm_sync_to_google_sheet($sync_data);
         }
+
+        // 6. Gửi thông báo FCM
+        $buyer_name = $params['buyerName'] ?? 'Khách lẻ';
+        $total_amount = 0;
+        foreach ($products as $p) { $total_amount += (int)($p['sellingPrice'] ?? 0); }
+        $total_str = number_format($total_amount, 0, ',', '.') . ' VNĐ';
+
+        gm_send_fcm_notification(
+            "Hóa đơn mới: $buyer_name",
+            "Đã bán đơn hàng trị giá $total_str. Kiểm tra ngay!",
+            array(
+                'invoice_id' => $invoice_id,
+                'type' => 'new_invoice'
+            )
+        );
         
         $params['id'] = $invoice_id;
         return new WP_REST_Response(array('data' => $params, 'message' => 'Invoice created'), 201);
@@ -919,7 +941,116 @@ function gm_handle_get_dashboard_stats() {
 }
 
 /**
- * 5. CORS SUPPORT
+ * 9. FCM NOTIFICATION HELPERS
+ */
+function gm_get_fcm_access_token() {
+    $token = get_transient('gm_fcm_access_token');
+    if ($token) return $token;
+
+    $json_path = plugin_dir_path(__FILE__) . 'fcm-mobile-415a5-firebase-adminsdk-h3nc7-505ea43322.json';
+    if (!file_exists($json_path)) return false;
+
+    $config = json_decode(file_get_contents($json_path), true);
+    $client_email = $config['client_email'];
+    $private_key = $config['private_key'];
+
+    $header = json_encode(['alg' => 'RS256', 'typ' => 'JWT']);
+    $now = time();
+    $payload = json_encode([
+        'iss' => $client_email,
+        'scope' => 'https://www.googleapis.com/auth/firebase.messaging',
+        'aud' => 'https://oauth2.googleapis.com/token',
+        'exp' => $now + 3600,
+        'iat' => $now
+    ]);
+
+    $base64UrlHeader = gm_base64url_encode($header);
+    $base64UrlPayload = gm_base64url_encode($payload);
+
+    $signature = '';
+    if (!openssl_sign($base64UrlHeader . "." . $base64UrlPayload, $signature, $private_key, OPENSSL_ALGO_SHA256)) {
+        return false;
+    }
+    $base64UrlSignature = gm_base64url_encode($signature);
+    $jwt = $base64UrlHeader . "." . $base64UrlPayload . "." . $base64UrlSignature;
+
+    $response = wp_remote_post('https://oauth2.googleapis.com/token', array(
+        'body' => array(
+            'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            'assertion' => $jwt
+        )
+    ));
+
+    if (is_wp_error($response)) return false;
+    $data = json_decode(wp_remote_retrieve_body($response), true);
+    $access_token = $data['access_token'] ?? false;
+
+    if ($access_token) {
+        set_transient('gm_fcm_access_token', $access_token, 3500);
+    }
+
+    return $access_token;
+}
+
+function gm_send_fcm_notification($title, $body, $data = []) {
+    $access_token = gm_get_fcm_access_token();
+    if (!$access_token) return false;
+
+    $token = gm_get_setting('fcm_token');
+    if (empty($token)) return false;
+
+    $project_id = 'fcm-mobile-415a5'; // Lấy từ file JSON
+    $url = "https://fcm.googleapis.com/v1/projects/$project_id/messages:send";
+
+    $message = [
+        'message' => [
+            'token' => $token,
+            'notification' => [
+                'title' => $title,
+                'body' => $body
+            ],
+            'data' => array_map('strval', $data),
+            'apns' => [
+                'payload' => [
+                    'aps' => [
+                        'sound' => 'default',
+                        'badge' => 1
+                    ]
+                ]
+            ]
+        ]
+    ];
+
+    $response = wp_remote_post($url, array(
+        'headers' => array(
+            'Authorization' => "Bearer $access_token",
+            'Content-Type' => 'application/json'
+        ),
+        'body'        => json_encode($message),
+        'timeout'     => 1,
+        'blocking'    => false, // CHẾ ĐỘ BẤT ĐỒNG BỘ
+        'sslverify'   => false
+    ));
+
+    return !is_wp_error($response);
+}
+
+function gm_handle_test_fcm($request) {
+    $success = gm_send_fcm_notification(
+        "Thông báo thử nghiệm", 
+        "Nếu bạn thấy thông báo này, FCM đã hoạt động! " . date('H:i:s'),
+        ['test' => 'true']
+    );
+    
+    if ($success) {
+        return new WP_REST_Response(['message' => 'Test notification sent to topic: admin_invoices'], 200);
+    } else {
+        return new WP_REST_Response(['message' => 'Failed to send notification. Check logs or credentials.'], 500);
+    }
+}
+
+/**
+ * 10. CORS SUPPORT
  */
 add_action('init', function() {
     header("Access-Control-Allow-Origin: *");

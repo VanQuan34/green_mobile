@@ -1,4 +1,58 @@
 import SwiftUI
+import FirebaseCore
+import FirebaseMessaging
+import UserNotifications
+
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+        // Configure Firebase
+        FirebaseApp.configure()
+        
+        // Push Notifications
+        UNUserNotificationCenter.current().delegate = self
+        let authOptions: UNAuthorizationOptions = [.alert, .badge, .sound]
+        UNUserNotificationCenter.current().requestAuthorization(options: authOptions) { granted, error in
+            if let error = error {
+                print("❌ Permission error: \(error)")
+                return
+            }
+            
+            print("✅ Permission granted: \(granted)")
+            
+            DispatchQueue.main.async {
+                UIApplication.shared.registerForRemoteNotifications()
+            }
+        }
+        
+        // Messaging Delegate
+        Messaging.messaging().delegate = self
+        
+        return true
+    }
+    
+    // Remote Notification Registration
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        print("✅ APNs Token: \(deviceToken.map { String(format: "%02.2hhx", $0) }.joined())")
+        Messaging.messaging().apnsToken = deviceToken
+    }
+    
+    // FCM Token updated
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        print("Firebase: FCM registration token: \(String(describing: fcmToken))")
+        
+        if let token = fcmToken {
+            // Save to server
+            Task {
+                await DataManager.shared.updateFCMToken(token)
+            }
+        }
+    }
+    
+    // Foreground Notification
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([[.banner, .list, .sound]])
+    }
+}
 
 struct SplashView: View {
     @State private var startAnimation = false
@@ -151,6 +205,7 @@ struct SplashView: View {
 
 @main
 struct GreenMobileApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var authManager = AuthManager.shared
     @StateObject private var dataManager = DataManager.shared
     

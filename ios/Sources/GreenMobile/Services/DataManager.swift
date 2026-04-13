@@ -344,6 +344,29 @@ class DataManager: ObservableObject {
         }
     }
     
+    func updateFCMToken(_ token: String) async {
+        guard let url = URL(string: "\(AppConfig.apiUrl)/settings") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        if let authToken = UserDefaults.standard.string(forKey: "token") {
+            request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+        }
+        
+        let body = ["fcm_token": token]
+        request.httpBody = try? JSONEncoder().encode(body)
+        
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse {
+                print("DataManager: FCM Token update status: \(httpResponse.statusCode)")
+            }
+        } catch {
+            print("DataManager Error: Failed to update FCM token - \(error.localizedDescription)")
+        }
+    }
+    
     private func performFetch<T: Codable>(url: URL, completion: @escaping (T) -> Void) async {
         do {
             var request = URLRequest(url: url)

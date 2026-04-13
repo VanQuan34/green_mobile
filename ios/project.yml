@@ -1,4 +1,8 @@
 name: GreenMobile
+packages:
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    from: 10.0.0
 options:
   bundleIdPrefix: com.reactnative.app
 targets:
@@ -8,15 +12,21 @@ targets:
     deploymentTarget: "16.0"
     sources:
       - path: Sources/GreenMobile
+    dependencies:
+      - package: Firebase
+        product: FirebaseAnalytics
+      - package: Firebase
+        product: FirebaseMessaging
     settings:
       base:
         INFOPLIST_FILE: Sources/GreenMobile/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Sources/GreenMobile/GreenMobile.entitlements
         PRODUCT_BUNDLE_IDENTIFIER: com.reactnative.app
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         GENERATE_INFOPLIST_FILE: NO
         SWIFT_VERSION: 5.10
-        TARGETED_DEVICE_FAMILY: "1,2" # iPhone and iPad
+        TARGETED_DEVICE_FAMILY: "1,2"
       configs:
         debug:
           DEBUG_INFORMATION_FORMAT: dwarf

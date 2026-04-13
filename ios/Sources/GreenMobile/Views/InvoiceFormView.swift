@@ -6,6 +6,8 @@ struct InvoiceFormView: View {
     
     // Inputs
     let products: [Product]
+    var onSuccess: (() -> Void)? = nil
+    
     @State private var buyerName: String = ""
     @State private var buyerPhone: String = ""
     @State private var buyerAddress: String = ""
@@ -20,8 +22,15 @@ struct InvoiceFormView: View {
     }
     
     var debtAmount: Int {
-        let paid = Int(amountPaid) ?? 0
+        let cleanPaid = amountPaid.replacingOccurrences(of: ".", with: "")
+        let paid = Int(cleanPaid) ?? 0
         return max(0, totalAmount - paid)
+    }
+    
+    var isAmountPaidValid: Bool {
+        let cleanPaid = amountPaid.replacingOccurrences(of: ".", with: "")
+        let paid = Int(cleanPaid) ?? 0
+        return paid <= totalAmount
     }
     
     var body: some View {
@@ -103,13 +112,21 @@ struct InvoiceFormView: View {
                 Section(header: Text("Sản phẩm đã chọn")) {
                     ForEach(products) { product in
                         HStack {
-                            VStack(alignment: .leading) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(product.name)
                                     .font(.subheadline)
                                     .fontWeight(.medium)
-                                Text(product.last4Imei)
-                                    .font(.system(size: 10, design: .monospaced))
+                                
+                                Text("\(product.color ?? "N/A") | \(product.capacity ?? "N/A")")
+                                    .font(.system(size: 10))
                                     .foregroundColor(.secondary)
+                                
+                                Text(product.imei ?? "N/A")
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
+                                    .background(Color.gray.opacity(0.1))
+                                    .cornerRadius(2)
                             }
                             Spacer()
                             Text(product.sellingPrice?.formatVND() ?? "0đ")
@@ -117,6 +134,7 @@ struct InvoiceFormView: View {
                                 .foregroundColor(AppTheme.primary)
                                 .fontWeight(.bold)
                         }
+                        .padding(.vertical, 2)
                     }
                 }
                 
@@ -128,14 +146,35 @@ struct InvoiceFormView: View {
                             .fontWeight(.bold)
                     }
                     
-                    HStack {
-                        Text("Khách đã trả:")
-                        Spacer()
-                        TextField("0", text: $amountPaid)
-                            .keyboardType(.numberPad)
-                            .multilineTextAlignment(.trailing)
-                            .fontWeight(.semibold)
-                            .foregroundColor(AppTheme.success)
+                    VStack(alignment: .trailing, spacing: 4) {
+                        HStack {
+                            Text("Khách đã trả:")
+                            Spacer()
+                            TextField("0", text: $amountPaid)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .fontWeight(.semibold)
+                                .foregroundColor(AppTheme.success)
+                                .onChange(of: amountPaid) { newValue in
+                                    amountPaid = newValue.formatCurrency()
+                                }
+                        }
+                        
+                        let cleanPaid = amountPaid.replacingOccurrences(of: ".", with: "")
+                        if let paidInt = Int(cleanPaid), paidInt > 0 {
+                            Text(readVietnameseNumber(paidInt))
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.secondary)
+                                .italic()
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    
+                    if !isAmountPaidValid {
+                        Text("Số tiền trả không được vượt quá tổng giá trị (\(totalAmount.formatVND()))")
+                            .font(.caption2)
+                            .foregroundColor(AppTheme.danger)
+                            .padding(.top, 2)
                     }
                     
                     HStack {
@@ -171,7 +210,7 @@ struct InvoiceFormView: View {
                         Button("Hoàn tất") {
                             saveInvoice()
                         }
-                        .disabled(buyerName.isEmpty || buyerPhone.isEmpty)
+                        .disabled(buyerName.isEmpty || buyerPhone.isEmpty || !isAmountPaidValid)
                         .fontWeight(.bold)
                     }
                 }
@@ -179,7 +218,7 @@ struct InvoiceFormView: View {
             .onAppear {
                 // Initialize amountPaid with totalAmount by default
                 if amountPaid.isEmpty {
-                    amountPaid = String(totalAmount)
+                    amountPaid = String(totalAmount).formatCurrency()
                 }
             }
         }
@@ -191,7 +230,10 @@ struct InvoiceFormView: View {
         isSaving = true
         errorMessage = nil
         
-        let paidInt = Int(amountPaid) ?? 0
+        // Remove formatting (dots) before saving
+        let cleanPaid = amountPaid.replacingOccurrences(of: ".", with: "")
+        let paidInt = Int(cleanPaid) ?? 0
+        
         let newInvoice = Invoice(
             buyerName: buyerName,
             buyerPhone: buyerPhone,
@@ -206,6 +248,7 @@ struct InvoiceFormView: View {
                 try await dataManager.addInvoice(newInvoice)
                 await MainActor.run {
                     isSaving = false
+                    onSuccess?()
                     dismiss()
                 }
             } catch {
@@ -216,6 +259,74 @@ struct InvoiceFormView: View {
             }
         }
     }
+}
+
+// MARK: - Vietnamese Currency Utilities
+extension String {
+    func formatCurrency() -> String {
+        let clean = self.replacingOccurrences(of: ".", with: "").replacingOccurrences(of: " ", with: "")
+        guard let number = Int(clean) else { return "" }
+        let formatter = NumberFormatter()
+        formatter.groupingSeparator = "."
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: number)) ?? ""
+    }
+}
+
+func readVietnameseNumber(_ number: Int) -> String {
+    if number == 0 { return "Không đồng" }
+    
+    let units = ["", "mươi", "trăm", "nghìn", "mươi", "trăm", "triệu", "mươi", "trăm", "tỷ"]
+    let digits = ["không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"]
+    
+    func readThreeDigits(_ n: Int, isFirst: Bool = false) -> String {
+        let h = n / 100
+        let t = (n % 100) / 10
+        let u = n % 10
+        var res = ""
+        
+        if h > 0 || !isFirst {
+            res += digits[h] + " trăm "
+        }
+        
+        if t > 0 {
+            if t == 1 { res += "mười " }
+            else { res += digits[t] + " mươi " }
+        } else if h > 0 && u > 0 {
+            res += "lẻ "
+        }
+        
+        if u > 0 {
+            if u == 1 && t > 1 { res += "mốt " }
+            else if u == 5 && t > 0 { res += "lăm " }
+            else { res += digits[u] + " " }
+        }
+        
+        return res
+    }
+    
+    var n = number
+    var groups: [Int] = []
+    while n > 0 {
+        groups.append(n % 1000)
+        n /= 1000
+    }
+    
+    let suffixes = ["", "nghìn", "triệu", "tỷ", "nghìn tỷ", "triệu tỷ"]
+    var res = ""
+    
+    for i in (0..<groups.count).reversed() {
+        let gRes = readThreeDigits(groups[i], isFirst: i == groups.count - 1)
+        if !gRes.isEmpty {
+            res += gRes + suffixes[i] + " "
+        }
+    }
+    
+    var finalResult = res.trimmingCharacters(in: .whitespaces).capitalized
+    if !finalResult.isEmpty {
+        finalResult += " đồng"
+    }
+    return finalResult
 }
 
 #Preview {

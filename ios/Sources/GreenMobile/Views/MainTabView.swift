@@ -16,6 +16,11 @@ struct MainTabView: View {
                     Label("Hóa đơn", systemImage: "doc.text.fill")
                 }
             
+            DebtListView()
+                .tabItem {
+                    Label("Công nợ", systemImage: "dollarsign.circle.fill")
+                }
+            
             ProductListView()
                 .tabItem {
                     Label("Sản phẩm", systemImage: "cart.fill")

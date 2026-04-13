@@ -55,6 +55,19 @@ struct Product: Codable, Identifiable {
         self.sellingPrice = sellingPrice
         self.sale = false
     }
+    
+    // Memberwise init for updates
+    init(id: String, name: String, imei: String?, color: String?, capacity: String?, status: String?, originalPrice: Int?, sellingPrice: Int?, sale: Bool?) {
+        self.id = id
+        self.name = name
+        self.imei = imei
+        self.color = color
+        self.capacity = capacity
+        self.status = status
+        self.originalPrice = originalPrice
+        self.sellingPrice = sellingPrice
+        self.sale = sale
+    }
 }
 
 extension Int {
@@ -138,6 +151,21 @@ struct Invoice: Codable, Identifiable {
         self.date = formatter.string(from: Date())
         self.createdAt = self.date
     }
+    
+    // Memberwise init for updates
+    init(id: String, buyerName: String, buyerPhone: String, buyerAddress: String, totalAmount: Int, amountPaid: Int?, debt: Int?, isFullyPaid: Bool?, products: [Product]?, date: String, createdAt: String?) {
+        self.id = id
+        self.buyerName = buyerName
+        self.buyerPhone = buyerPhone
+        self.buyerAddress = buyerAddress
+        self.totalAmount = totalAmount
+        self.amountPaid = amountPaid
+        self.debt = debt
+        self.isFullyPaid = isFullyPaid
+        self.products = products
+        self.date = date
+        self.createdAt = createdAt
+    }
 }
 
 struct Customer: Codable, Identifiable {
@@ -173,4 +201,16 @@ struct Customer: Codable, Identifiable {
         self.phone = phone
         self.address = address
     }
+}
+
+struct CustomerDebt: Identifiable {
+    var id: String { buyerPhone.isEmpty ? buyerName : buyerPhone }
+    let buyerName: String
+    let buyerPhone: String
+    let buyerAddress: String
+    var totalAmount: Int
+    var amountPaid: Int
+    var debt: Int
+    var invoices: [Invoice]
+    var lastUpdate: Date
 }

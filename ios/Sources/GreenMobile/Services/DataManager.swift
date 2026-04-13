@@ -18,6 +18,7 @@ struct DashboardStats: Codable {
     }
 }
 
+@MainActor
 class DataManager: ObservableObject {
     static let shared = DataManager()
     
@@ -36,7 +37,7 @@ class DataManager: ObservableObject {
     private init() {}
     
     func fetchInitialData() async {
-        DispatchQueue.main.async { self.isLoading = true }
+        self.isLoading = true
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await self.fetchInvoices() }
             group.addTask { await self.fetchCustomers() }
@@ -60,70 +61,62 @@ class DataManager: ObservableObject {
         guard canLoadMoreProducts else { return }
         
         if page > 1 {
-            DispatchQueue.main.async { self.isFetchingMoreProducts = true }
+            self.isFetchingMoreProducts = true
         } else if products.isEmpty {
-            DispatchQueue.main.async { self.isLoading = true }
+            self.isLoading = true
         }
         
         let urlString = "\(AppConfig.apiUrl)/products?page=\(page)&per_page=\(productsPerPage)\(search != nil && !search!.isEmpty ? "&search=\(search!.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")" : "")"
         
         guard let url = URL(string: urlString) else {
-            DispatchQueue.main.async {
-                self.isLoading = false
-                self.isFetchingMoreProducts = false
-            }
+            self.isLoading = false
+            self.isFetchingMoreProducts = false
             return
         }
         
         await performFetch(url: url) { (data: [Product]) in
-            DispatchQueue.main.async {
-                if page == 1 {
-                    self.products = data
-                } else {
-                    self.products.append(contentsOf: data)
-                }
-                
-                self.productsPage = page
-                self.canLoadMoreProducts = data.count == self.productsPerPage
-                self.isLoading = false
-                self.isFetchingMoreProducts = false
-                self.calculateDashboardStats()
+            if page == 1 {
+                self.products = data
+            } else {
+                self.products.append(contentsOf: data)
             }
+            
+            self.productsPage = page
+            self.canLoadMoreProducts = data.count == self.productsPerPage
+            self.isLoading = false
+            self.isFetchingMoreProducts = false
+            self.calculateDashboardStats()
         }
     }
     
     func fetchInvoices() async {
         guard let url = URL(string: "\(AppConfig.apiUrl)/invoices") else { return }
         await performFetch(url: url) { (data: [Invoice]) in
-            DispatchQueue.main.async { 
-                self.invoices = data
-                self.calculateDashboardStats()
-            }
+            self.invoices = data
+            self.calculateDashboardStats()
         }
     }
     
     func fetchCustomers() async {
         guard let url = URL(string: "\(AppConfig.apiUrl)/customers") else { return }
         await performFetch(url: url) { (data: [Customer]) in
-            DispatchQueue.main.async { self.customers = data }
+            self.customers = data
         }
     }
     
     func fetchDashboardStats() async {
         guard let url = URL(string: "\(AppConfig.apiUrl)/dashboard/stats") else { return }
         await performFetch(url: url) { (data: DashboardStats) in
-            DispatchQueue.main.async {
-                // Update specific stats from API
-                self.dashboardStats.soldCount = data.soldCount
-                self.dashboardStats.inventoryCount = data.inventoryCount
-                self.dashboardStats.totalRevenue = data.totalRevenue
-                self.dashboardStats.totalPaid = data.totalPaid
-                self.dashboardStats.totalDebt = data.totalDebt
-                self.dashboardStats.totalCapital = data.totalCapital
-                self.dashboardStats.expectedTotalRevenue = data.expectedTotalRevenue
-                
-                self.calculateDashboardStats()
-            }
+            // Update specific stats from API
+            self.dashboardStats.soldCount = data.soldCount
+            self.dashboardStats.inventoryCount = data.inventoryCount
+            self.dashboardStats.totalRevenue = data.totalRevenue
+            self.dashboardStats.totalPaid = data.totalPaid
+            self.dashboardStats.totalDebt = data.totalDebt
+            self.dashboardStats.totalCapital = data.totalCapital
+            self.dashboardStats.expectedTotalRevenue = data.expectedTotalRevenue
+            
+            self.calculateDashboardStats()
         }
     }
     
@@ -149,13 +142,11 @@ class DataManager: ObservableObject {
                 await fetchCustomers() // Refresh list
                 
                 // Update local invoices to reflect changes immediately
-                DispatchQueue.main.async {
-                    for i in 0..<self.invoices.count {
-                        if self.invoices[i].buyerPhone == oldPhone || self.invoices[i].buyerPhone == customer.phone {
-                            self.invoices[i].buyerName = customer.name
-                            self.invoices[i].buyerPhone = customer.phone
-                            self.invoices[i].buyerAddress = customer.address
-                        }
+                for i in 0..<self.invoices.count {
+                    if self.invoices[i].buyerPhone == oldPhone || self.invoices[i].buyerPhone == customer.phone {
+                        self.invoices[i].buyerName = customer.name
+                        self.invoices[i].buyerPhone = customer.phone
+                        self.invoices[i].buyerAddress = customer.address
                     }
                 }
             } else {
@@ -168,38 +159,53 @@ class DataManager: ObservableObject {
     }
     
     func calculateDashboardStats() {
+        // We use a temporary stats object to avoid unnecessary UI refreshes during calculation
         var stats = DashboardStats()
         
-        // 1. Basic Counts
-        stats.totalRevenue = invoices.reduce(0) { $0 + $1.totalAmount }
-        stats.totalPaid = invoices.reduce(0) { $0 + ($1.amountPaid ?? 0) }
+        // 1. Separate actual invoices from manual debt (following Web logic)
+        let actualInvoices = invoices.filter { !($0.id.hasPrefix("MANUAL-")) }
+        
+        // Revenue, Paid, and Profit only count ACTUAL invoices
+        stats.totalRevenue = actualInvoices.reduce(0) { $0 + $1.totalAmount }
+        stats.totalPaid = actualInvoices.reduce(0) { $0 + ($1.amountPaid ?? 0) }
+        
+        // Total Debt includes EVERYTHING (Actual + Manual)
         stats.totalDebt = invoices.reduce(0) { $0 + ($1.debt ?? 0) }
         
-        stats.soldCount = invoices.reduce(0) { $0 + ($1.products?.count ?? 1) }
-        let unsoldProducts = products.filter { !($0.sale ?? false) }
-        stats.inventoryCount = unsoldProducts.count
-        
-        // 2. Capital & Profit
-        let unsoldCapital = unsoldProducts.reduce(0) { $0 + ($1.originalPrice ?? 0) }
-        let soldCapital = invoices.reduce(0) { sum, inv in
-            if let products = inv.products, !products.isEmpty {
-                return sum + products.reduce(0) { $0 + ($1.originalPrice ?? 0) }
-            } else {
-                return sum // Standard approach for multi-product
-            }
-        }
-        stats.totalCapital = unsoldCapital + soldCapital
-        
-        let currentUnsoldRevenue = unsoldProducts.reduce(0) { $0 + ($1.sellingPrice ?? 0) }
-        stats.expectedTotalRevenue = stats.totalRevenue + currentUnsoldRevenue
-        
-        stats.totalProfit = invoices.reduce(0) { sum, inv in
+        // Profit is calculated only on ACTUAL invoices
+        stats.totalProfit = actualInvoices.reduce(0) { sum, inv in
             let revenue = inv.totalAmount
             let cost = inv.products?.reduce(0) { $0 + ($1.originalPrice ?? 0) } ?? 0
             return sum + (revenue - cost)
         }
         
-        // 3. Time-series (Last 7 Days)
+        // 2. Counts and Values - Priority to API Stats if available
+        // Local calculation as fallback or for immediate feedback
+        let unsoldProducts = products.filter { !($0.sale ?? false) }
+        
+        // If we have stats from API, we MUST prioritize them because they represent global data
+        // whereas local products array might be paged.
+        if dashboardStats.inventoryCount > 0 || dashboardStats.soldCount > 0 {
+            stats.soldCount = dashboardStats.soldCount
+            stats.inventoryCount = dashboardStats.inventoryCount
+            stats.totalCapital = dashboardStats.totalCapital
+            stats.expectedTotalRevenue = dashboardStats.expectedTotalRevenue
+        } else {
+            // Fallback calculation from local data
+            stats.soldCount = actualInvoices.reduce(0) { $0 + ($1.products?.count ?? 1) }
+            stats.inventoryCount = unsoldProducts.count
+            
+            let unsoldCapital = unsoldProducts.reduce(0) { $0 + ($1.originalPrice ?? 0) }
+            let soldCapital = actualInvoices.reduce(0) { sum, inv in
+                inv.products?.reduce(0) { $0 + ($1.originalPrice ?? 0) } ?? 0
+            }
+            stats.totalCapital = unsoldCapital + soldCapital
+            
+            let currentUnsoldRevenue = unsoldProducts.reduce(0) { $0 + ($1.sellingPrice ?? 0) }
+            stats.expectedTotalRevenue = stats.totalRevenue + currentUnsoldRevenue
+        }
+        
+        // 3. Time-series (Last 7 Days) - Always local based on what we have
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         var sevenDayData: [Date: Int] = [:]
@@ -210,7 +216,7 @@ class DataManager: ObservableObject {
             }
         }
         
-        for invoice in invoices {
+        for invoice in actualInvoices {
             let invDate = calendar.startOfDay(for: invoice.dateObject)
             if sevenDayData[invDate] != nil {
                 sevenDayData[invDate]! += invoice.totalAmount
@@ -218,9 +224,8 @@ class DataManager: ObservableObject {
         }
         stats.last7DaysRevenue = sevenDayData
         
-        DispatchQueue.main.async {
-            self.dashboardStats = stats
-        }
+        // Final update to publishable property
+        self.dashboardStats = stats
     }
     
     func addProduct(_ product: Product) async throws {
@@ -250,6 +255,37 @@ class DataManager: ObservableObject {
         }
     }
     
+    func updateProduct(_ product: Product) async throws {
+        guard let url = URL(string: "\(AppConfig.apiUrl)/products/\(product.id)") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        if let token = UserDefaults.standard.string(forKey: "token") {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        request.httpBody = try JSONEncoder().encode(product)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse {
+            if httpResponse.statusCode == 200 {
+                // Update local array immediately to reflect changes
+                if let index = self.products.firstIndex(where: { $0.id == product.id }) {
+                    self.products[index] = product
+                }
+                
+                self.calculateDashboardStats() // Recalculate stats with new prices
+            } else {
+                if let errorJson = String(data: data, encoding: .utf8) {
+                    print("DataManager Error: Update Product failed (\(httpResponse.statusCode)): \(errorJson)")
+                }
+                throw AppError.loginFailed(message: "Không thể cập nhật sản phẩm. Mã lỗi \(httpResponse.statusCode).")
+            }
+        }
+    }
+    
     func addInvoice(_ invoice: Invoice) async throws {
         guard let url = URL(string: "\(AppConfig.apiUrl)/invoices") else { return }
         var request = URLRequest(url: url)
@@ -265,14 +301,45 @@ class DataManager: ObservableObject {
         let (data, response) = try await URLSession.shared.data(for: request)
         
         if let httpResponse = response as? HTTPURLResponse {
-            if httpResponse.statusCode == 200 {
+            if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
                 await fetchInvoices() // Refresh
                 await fetchDashboardStats() // Refresh Dashboard data
+                await fetchProducts(page: 1) // Refresh products to hide sold ones
             } else {
                 if let errorJson = String(data: data, encoding: .utf8) {
                     print("DataManager Error: Add Invoice failed (\(httpResponse.statusCode)): \(errorJson)")
                 }
                 throw AppError.loginFailed(message: "Không thể lưu hóa đơn. Máy chủ trả về lỗi \(httpResponse.statusCode).")
+            }
+        }
+    }
+    
+    func updateInvoice(_ invoice: Invoice) async throws {
+        guard let url = URL(string: "\(AppConfig.apiUrl)/invoices/\(invoice.id)") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        if let token = UserDefaults.standard.string(forKey: "token") {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        request.httpBody = try JSONEncoder().encode(invoice)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse {
+            if httpResponse.statusCode == 200 {
+                // Update local array immediately
+                if let index = self.invoices.firstIndex(where: { $0.id == invoice.id }) {
+                    self.invoices[index] = invoice
+                }
+                self.calculateDashboardStats() // Refresh statistics
+            } else {
+                if let errorJson = String(data: data, encoding: .utf8) {
+                    print("DataManager Error: Update Invoice failed (\(httpResponse.statusCode)): \(errorJson)")
+                }
+                throw AppError.loginFailed(message: "Không thể cập nhật hóa đơn. Mã lỗi \(httpResponse.statusCode).")
             }
         }
     }

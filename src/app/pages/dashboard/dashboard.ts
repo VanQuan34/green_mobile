@@ -13,6 +13,75 @@ Chart.register(...registerables);
   imports: [CommonModule, FormsModule],
   template: `
     <div class="dashboard-page scale-in">
+      <!-- Loading Overlay -->
+      <div class="loading-overlay" *ngIf="isLoading">
+        <div class="spinner-container">
+          <div class="premium-spinner"></div>
+          <span>Đang tải dữ liệu...</span>
+        </div>
+      </div>
+
+      <!-- Time Filter Section -->
+      <div class="dashboard-filter-container glass-card mb-4">
+        <div class="filter-tabs-wrapper">
+          <div class="filter-tabs">
+            <button 
+              class="filter-tab-btn" 
+              [class.active]="selectedPeriod === 'all'"
+              (click)="onPeriodChange('all')">
+              Toàn bộ
+            </button>
+            <button 
+              class="filter-tab-btn" 
+              [class.active]="selectedPeriod === '7d'"
+              (click)="onPeriodChange('7d')">
+              7 ngày qua
+            </button>
+            <button 
+              class="filter-tab-btn" 
+              [class.active]="selectedPeriod === '30d'"
+              (click)="onPeriodChange('30d')">
+              30 ngày qua
+            </button>
+            
+            <div class="divider"></div>
+            
+            <div class="month-selector">
+              <select 
+                class="filter-select" 
+                [ngModel]="getSelectedMonth()" 
+                (change)="onMonthSelect($event)">
+                <option value="" disabled>Chọn theo tháng...</option>
+                <option *ngFor="let m of months" [value]="'month-' + m.val">
+                  {{ m.label }}
+                </option>
+              </select>
+            </div>
+
+            <div class="divider"></div>
+
+            <button 
+              class="filter-tab-btn" 
+              [class.active]="selectedPeriod === 'custom'"
+              (click)="onPeriodChange('custom')">
+              📅 Tùy chọn
+            </button>
+          </div>
+        </div>
+
+        <!-- Custom Date Range -->
+        <div class="custom-date-row mt-3" *ngIf="selectedPeriod === 'custom'">
+          <div class="date-field">
+            <label>Từ ngày</label>
+            <input type="date" [(ngModel)]="customStartDate" (ngModelChange)="onCustomDateChange()" />
+          </div>
+          <div class="date-field">
+            <label>Đến ngày</label>
+            <input type="date" [(ngModel)]="customEndDate" (ngModelChange)="onCustomDateChange()" />
+          </div>
+        </div>
+      </div>
+
       <!-- KPI Cards -->
       <div class="kpi-grid">
         <div class="kpi-card glass-card">
@@ -32,7 +101,7 @@ Chart.register(...registerables);
         <div class="kpi-card glass-card">
           <div class="kpi-icon orange">📈</div>
           <div class="kpi-content">
-            <label>Lợi nhuận dự kiến</label>
+            <label>Lợi nhuận gộp</label>
             <div class="value text-green">{{ stats.totalProfit | number }}đ</div>
           </div>
         </div>
@@ -52,19 +121,19 @@ Chart.register(...registerables);
         </div>
       </div>
 
-      <!-- Special KPI Row -->
+      <!-- Special KPI Row (Inventory related, usually not affected by time filter) -->
       <div class="kpi-row-special">
         <div class="kpi-card glass-card cyan">
           <div class="kpi-icon cyan">📊</div>
           <div class="kpi-content">
-            <label>Tổng vốn (Giá gốc)</label>
+            <label>Tổng vốn (Toàn bộ kho)</label>
             <div class="value">{{ stats.totalInventoryValue | number }}đ</div>
           </div>
         </div>
         <div class="kpi-card glass-card indigo">
           <div class="kpi-icon indigo">🎯</div>
           <div class="kpi-content">
-            <label>Doanh thu dự kiến (Nếu bán hết)</label>
+            <label>Giá trị kho (Dự kiến bán hết)</label>
             <div class="value">{{ stats.expectedTotalRevenue | number }}đ</div>
           </div>
         </div>
@@ -74,32 +143,10 @@ Chart.register(...registerables);
       <div class="charts-grid">
         <div class="chart-container glass-card">
           <div class="chart-header">
-            <h3>Xu hướng doanh thu</h3>
-            <div class="period-selector">
-              <button 
-                *ngFor="let p of periods" 
-                class="period-btn" 
-                [class.active]="selectedPeriod === p.value"
-                (click)="onPeriodChange(p.value)">
-                {{ p.label }}
-              </button>
-              <button 
-                class="period-btn" 
-                [class.active]="selectedPeriod === 'custom'"
-                (click)="onPeriodChange('custom')">
-                📅 Tùy chọn
-              </button>
-            </div>
-          </div>
-          <div class="custom-date-row" *ngIf="selectedPeriod === 'custom'">
-            <div class="date-field">
-              <label>Từ ngày</label>
-              <input type="date" [ngModel]="customStartDate" (ngModelChange)="onCustomDateChange($event, 'start')" />
-            </div>
-            <div class="date-field">
-              <label>Đến ngày</label>
-              <input type="date" [ngModel]="customEndDate" (ngModelChange)="onCustomDateChange($event, 'end')" />
-            </div>
+            <h3>Biểu đồ xu hướng</h3>
+            <span class="period-label text-muted" *ngIf="selectedPeriod !== 'custom'">
+              {{ getPeriodLabel() }}
+            </span>
           </div>
           <div class="canvas-wrapper">
             <canvas #salesChart></canvas>
@@ -121,21 +168,159 @@ Chart.register(...registerables);
     .dashboard-page {
       display: flex;
       flex-direction: column;
-      gap: 2rem;
+      gap: 1.5rem;
       padding-bottom: 2rem;
+      position: relative;
+      min-height: 500px;
     }
+
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 20px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .spinner-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .spinner-container span {
+      font-weight: 600;
+      color: #10b981;
+      font-size: 0.9rem;
+    }
+
+    .premium-spinner {
+      width: 50px;
+      height: 50px;
+      border: 3px solid rgba(16, 185, 129, 0.1);
+      border-top-color: #10b981;
+      border-radius: 50%;
+      animation: spin 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .dashboard-filter-container {
+      padding: 1.25rem;
+      border-radius: 16px;
+    }
+
+    .filter-tabs-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      display: flex;
+    }
+
+    .filter-tabs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-bottom: 4px;
+    }
+
+    .filter-tab-btn {
+      border: 1.5px solid rgba(0, 0, 0, 0.05);
+      background: #f8fafc;
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      white-space: nowrap;
+    }
+
+    .filter-tab-btn:hover {
+      background: #f1f5f9;
+      color: #334155;
+    }
+
+    .filter-tab-btn.active {
+      background: #10b981;
+      color: #fff;
+      border-color: #10b981;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+
+    .divider {
+      width: 1px;
+      height: 24px;
+      background: rgba(0, 0, 0, 0.1);
+      margin: 0 8px;
+    }
+
+    .month-selector {
+      display: flex;
+      align-items: center;
+    }
+
+    .filter-select {
+      border: 1.5px solid rgba(0, 0, 0, 0.05);
+      background: #f8fafc;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.25s ease;
+      min-width: 130px;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 16px;
+      padding-right: 32px;
+    }
+
+    .filter-select:focus {
+      border-color: #10b981;
+      background-color: #fff;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+
+    .filter-select option {
+      font-weight: 500;
+    }
+
+    .mb-4 { margin-bottom: 1rem; }
+    .mt-3 { margin-top: 0.75rem; }
 
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
     }
 
     .kpi-card {
-      padding: 1.5rem;
+      padding: 1.25rem;
       display: flex;
       align-items: center;
-      gap: 1.25rem;
+      gap: 1rem;
       transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
@@ -144,13 +329,13 @@ Chart.register(...registerables);
     }
 
     .kpi-icon {
-      width: 50px;
-      height: 50px;
+      width: 48px;
+      height: 48px;
       border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.5rem;
+      font-size: 1.4rem;
     }
 
     .kpi-icon.blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
@@ -165,26 +350,21 @@ Chart.register(...registerables);
     .kpi-card.indigo { border-bottom: 3px solid #4f46e5; }
 
     .kpi-row-special {
-      display: flex;
-      gap: 1.5rem;
-      justify-content: flex-start;
-    }
-
-    .kpi-row-special .kpi-card {
-      flex: 1;
-      max-width: calc(50% - 0.75rem);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
     }
 
     .kpi-content label {
       display: block;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       font-weight: 600;
       color: var(--text-muted);
       margin-bottom: 0.25rem;
     }
 
     .kpi-content .value {
-      font-size: 1.25rem;
+      font-size: 1.15rem;
       font-weight: 800;
       color: var(--text-main);
     }
@@ -195,77 +375,41 @@ Chart.register(...registerables);
     .charts-grid {
       display: grid;
       grid-template-columns: 2fr 1fr;
-      gap: 1.5rem;
+      gap: 1.25rem;
     }
 
     .chart-container {
       padding: 1.5rem;
       display: flex;
       flex-direction: column;
-      height: 400px;
+      height: 380px;
     }
 
     .chart-header {
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      flex-wrap: wrap;
-      gap: 0.75rem;
     }
 
     .chart-header h3 {
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       font-weight: 700;
       color: var(--text-main);
       margin: 0;
     }
 
-    .period-selector {
-      display: flex;
-      gap: 4px;
-      background: rgba(0, 0, 0, 0.04);
-      border-radius: 10px;
-      padding: 3px;
-    }
-
-    .period-btn {
-      border: none;
-      background: transparent;
-      padding: 6px 14px;
-      border-radius: 8px;
+    .period-label {
       font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: all 0.25s ease;
-      white-space: nowrap;
-    }
-
-    .period-btn:hover {
-      color: var(--text-main);
-      background: rgba(0, 0, 0, 0.04);
-    }
-
-    .period-btn.active {
-      background: #10b981;
-      color: #fff;
-      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+      font-weight: 500;
     }
 
     .custom-date-row {
       display: flex;
       gap: 1rem;
-      margin-bottom: 1rem;
       padding: 12px 14px;
       background: rgba(0, 0, 0, 0.02);
-      border-radius: 10px;
-      animation: slideDown 0.25s ease;
-    }
-
-    @keyframes slideDown {
-      from { opacity: 0; transform: translateY(-8px); }
-      to { opacity: 1; transform: translateY(0); }
+      border-radius: 12px;
     }
 
     .date-field {
@@ -276,25 +420,18 @@ Chart.register(...registerables);
     }
 
     .date-field label {
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       font-weight: 600;
       color: var(--text-muted);
     }
 
     .date-field input {
-      border: 1.5px solid rgba(0, 0, 0, 0.1);
+      border: 1.5px solid rgba(0, 0, 0, 0.08);
       border-radius: 8px;
-      padding: 8px 12px;
-      font-size: 0.85rem;
+      padding: 6px 10px;
+      font-size: 0.8rem;
       font-weight: 500;
-      color: var(--text-main);
       background: #fff;
-      outline: none;
-      transition: border-color 0.2s ease;
-    }
-
-    .date-field input:focus {
-      border-color: #10b981;
     }
 
     .canvas-wrapper {
@@ -310,21 +447,12 @@ Chart.register(...registerables);
     }
 
     @media (max-width: 1024px) {
-      .charts-grid {
-        grid-template-columns: 1fr;
-      }
+      .charts-grid { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 768px) {
-      .dashboard-page {
-        gap: 1rem;
-      }
-      .chart-container {
-        height: 300px;
-      }
-      .kpi-row-special .kpi-card {
-        width: 100%;
-      }
+      .kpi-row-special { grid-template-columns: 1fr; }
+      .chart-container { height: 320px; }
     }
   `]
 })
@@ -332,14 +460,25 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   @ViewChild('salesChart') salesChartRef!: ElementRef;
   @ViewChild('inventoryChart') inventoryChartRef!: ElementRef;
 
-  periods = [
-    { label: '3 ngày', value: '3d' },
-    { label: '7 ngày', value: '7d' },
-    { label: '1 tháng', value: '1m' }
+  months = [
+    { label: 'Tháng 1', val: 1 },
+    { label: 'Tháng 2', val: 2 },
+    { label: 'Tháng 3', val: 3 },
+    { label: 'Tháng 4', val: 4 },
+    { label: 'Tháng 5', val: 5 },
+    { label: 'Tháng 6', val: 6 },
+    { label: 'Tháng 7', val: 7 },
+    { label: 'Tháng 8', val: 8 },
+    { label: 'Tháng 9', val: 9 },
+    { label: 'Tháng 10', val: 10 },
+    { label: 'Tháng 11', val: 11 },
+    { label: 'Tháng 12', val: 12 }
   ];
-  selectedPeriod = '7d';
+
+  selectedPeriod = 'all';
   customStartDate = '';
   customEndDate = '';
+  isLoading = false;
 
   stats = {
     totalRevenue: 0,
@@ -371,12 +510,15 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         this.stats.totalDebt = apiStats.totalDebt;
         this.stats.totalInventoryValue = apiStats.totalCapital;
         this.stats.expectedTotalRevenue = apiStats.totalExpectedRevenue;
+        this.stats.totalProfit = (apiStats as any).totalProfit || 0;
+        this.isLoading = false;
 
         // Cập nhật biểu đồ nếu đã khởi tạo
         if (this.inventoryChart) {
           this.inventoryChart.data.datasets[0].data = [this.stats.soldCount, this.stats.inventoryCount];
           this.inventoryChart.update();
         }
+        this.updateSalesChart();
       }
     });
   }
@@ -391,90 +533,84 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   private calculateStats() {
-    const rawInvoices = this.dataService.getInvoices();
-    const products = this.dataService.getProducts();
-
-    // Tách hóa đơn thực tế và nợ nhập ngoài
-    const actualInvoices = rawInvoices.filter(i => !i.id.startsWith('MANUAL-'));
-    const manualInvoices = rawInvoices.filter(i => i.id.startsWith('MANUAL-'));
-
-    // Doanh thu và Thực thu chỉ tính hóa đơn thực tế
-    this.stats.totalRevenue = actualInvoices.reduce((sum, i) => sum + (i.totalAmount || i.productPrice || 0), 0);
-    this.stats.totalPaid = actualInvoices.reduce((sum, i) => sum + i.amountPaid, 0);
-
-    // Tổng công nợ bao gồm cả hóa đơn thực tế và nợ nhập ngoài
-    // this.stats.totalDebt = rawInvoices.reduce((sum, i) => sum + i.debt, 0); // Ưu tiên số từ API
-
-    // Đếm tổng số máy đã bán (Chỉ máy thực tế)
-    // this.stats.soldCount = actualInvoices.reduce((sum, inv) => sum + (inv.products?.length || 1), 0); // Ưu tiên số từ API
-    const unsoldProducts = products.filter(p => !p.sale);
-    // this.stats.inventoryCount = unsoldProducts.length; // Ưu tiên số từ API
-
-    // Tổng vốn = Tổng giá gốc của các sản phẩm chưa bán + Tổng giá gốc của các sản phẩm TRONG HÓA ĐƠN THỰC TẾ
-    const unsoldCapital = unsoldProducts.reduce((sum, p) => sum + (p.originalPrice || 0), 0);
-    const soldCapital = actualInvoices.reduce((sum, inv) => {
-      if (inv.products && inv.products.length > 0) {
-        return sum + inv.products.reduce((s, p) => s + (p.originalPrice || 0), 0);
-      } else {
-        // Fallback cho hóa đơn cũ
-        const product = products.find(p => p.id === inv.productId);
-        return sum + (product ? (product.originalPrice || 0) : 0);
-      }
-    }, 0);
-
-    // Doanh thu dự kiến = Doanh thu thực tế (đã bán) + Tổng giá bán sản phẩm trong kho (chưa bán)
-    // ƯU TIÊN: Nếu có dữ liệu từ API, ta không ghi đè các trường tổng vốn và doanh thu dự kiến vì API có dữ liệu toàn bộ lịch sử
-    const apiStats = this.dataService.getLatestStats();
-    if (apiStats) {
-      this.stats.totalInventoryValue = apiStats.totalCapital;
-      this.stats.expectedTotalRevenue = apiStats.totalExpectedRevenue;
-    } else {
-      // Fallback nếu chưa có API (chỉ tính được dựa trên dữ liệu hiện có trong app)
-      const currentUnsoldRevenue = unsoldProducts.reduce((sum, p) => sum + (p.sellingPrice || 0), 0);
-      this.stats.totalInventoryValue = unsoldCapital + soldCapital;
-      this.stats.expectedTotalRevenue = this.stats.totalRevenue + currentUnsoldRevenue;
-    }
-
-    // Tính lợi nhuận: Chỉ tính trên hóa đơn thực tế
-    this.stats.totalProfit = actualInvoices.reduce((sum, inv) => {
-      const revenue = inv.totalAmount || inv.productPrice || 0;
-      let cost = 0;
-      if (inv.products && inv.products.length > 0) {
-        cost = inv.products.reduce((s, p) => s + (p.originalPrice || 0), 0);
-      } else {
-        // Fallback cho hóa đơn cũ
-        const product = products.find(p => p.id === inv.productId);
-        cost = product ? product.originalPrice : 0;
-      }
-      return sum + (revenue - cost);
-    }, 0);
-
-    // Cập nhật chart nếu đã được khởi tạo
+    // Không cần tính lại nữa vì stats đã được cập nhật từ API
     this.updateSalesChart();
     this.updateInventoryChart();
   }
 
   onPeriodChange(period: string) {
     this.selectedPeriod = period;
-    if (period === 'custom') {
-      // Set default custom dates: last 7 days
+    let start = '';
+    let end = '';
+
+    const today = new Date();
+    const currentYear = today.getFullYear();
+
+    if (period === 'all') {
+      // API mặc định là toàn bộ nếu không truyền params
+    } else if (period === '7d') {
+      const d = new Date();
+      d.setDate(d.getDate() - 6);
+      start = this.toISODate(d);
+      end = this.toISODate(today);
+    } else if (period === '30d') {
+      const d = new Date();
+      d.setDate(d.getDate() - 29);
+      start = this.toISODate(d);
+      end = this.toISODate(today);
+    } else if (period.startsWith('month-')) {
+      const month = parseInt(period.split('-')[1], 10);
+      const firstDay = new Date(currentYear, month - 1, 1);
+      const lastDay = new Date(currentYear, month, 0);
+      start = this.toISODate(firstDay);
+      end = this.toISODate(lastDay);
+    } else if (period === 'custom') {
       if (!this.customStartDate || !this.customEndDate) {
-        const end = new Date();
-        const start = new Date();
-        start.setDate(start.getDate() - 6);
-        this.customStartDate = this.toISODate(start);
-        this.customEndDate = this.toISODate(end);
+        const d = new Date();
+        d.setDate(d.getDate() - 6);
+        this.customStartDate = this.toISODate(d);
+        this.customEndDate = this.toISODate(today);
       }
+      start = this.customStartDate;
+      end = this.customEndDate;
     }
-    this.updateSalesChart();
+
+    // Luôn gọi API để lấy số liệu KPI mới nhất
+    this.isLoading = true;
+    this.dataService.getDashboardStats(start, end).subscribe({
+      error: () => this.isLoading = false
+    });
   }
 
-  onCustomDateChange(value: string, type: 'start' | 'end') {
-    if (type === 'start') this.customStartDate = value;
-    else this.customEndDate = value;
-    if (this.customStartDate && this.customEndDate) {
-      this.updateSalesChart();
+  onMonthSelect(event: any) {
+    const value = event.target.value;
+    if (value) {
+      this.onPeriodChange(value);
     }
+  }
+
+  onCustomDateChange() {
+    if (this.customStartDate && this.customEndDate) {
+      this.isLoading = true;
+      this.dataService.getDashboardStats(this.customStartDate, this.customEndDate).subscribe({
+        error: () => this.isLoading = false
+      });
+    }
+  }
+
+  getSelectedMonth(): string {
+    return this.selectedPeriod.startsWith('month-') ? this.selectedPeriod : '';
+  }
+
+  getPeriodLabel(): string {
+    if (this.selectedPeriod === 'all') return 'Toàn bộ thời gian';
+    if (this.selectedPeriod === '7d') return '7 ngày gần nhất';
+    if (this.selectedPeriod === '30d') return '30 ngày gần nhất';
+    if (this.selectedPeriod.startsWith('month-')) {
+      const m = this.selectedPeriod.split('-')[1];
+      return `Tháng ${m} / ${new Date().getFullYear()}`;
+    }
+    return '';
   }
 
   private toISODate(d: Date): string {
@@ -539,29 +675,39 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   private getChartDataForPeriod(): { labels: string[], data: number[] } {
-    if (this.selectedPeriod === 'custom' && this.customStartDate && this.customEndDate) {
+    let startDate: Date;
+    let endDate: Date;
+    const today = new Date();
+    const currentYear = today.getFullYear();
+
+    if (this.selectedPeriod === 'all') {
+      // Đối với "tất cả", ta hiển thị 30 ngày gần nhất trên biểu đồ để biểu đồ không bị quá dày
+      const start = new Date();
+      start.setDate(start.getDate() - 29);
+      return this.buildChartDataFromRange(start, today);
+    } else if (this.selectedPeriod === '7d') {
+      const start = new Date();
+      start.setDate(start.getDate() - 6);
+      return this.buildChartDataFromRange(start, today);
+    } else if (this.selectedPeriod === '30d') {
+      const start = new Date();
+      start.setDate(start.getDate() - 29);
+      return this.buildChartDataFromRange(start, today);
+    } else if (this.selectedPeriod.startsWith('month-')) {
+      const month = parseInt(this.selectedPeriod.split('-')[1], 10);
+      startDate = new Date(currentYear, month - 1, 1);
+      endDate = new Date(currentYear, month, 0);
+      return this.buildChartDataFromRange(startDate, endDate);
+    } else if (this.selectedPeriod === 'custom' && this.customStartDate && this.customEndDate) {
       return this.buildChartDataFromRange(new Date(this.customStartDate), new Date(this.customEndDate));
     }
-    return this.buildChartData(this.getDaysCount());
+    
+    return { labels: [], data: [] };
   }
 
   private buildChartData(days: number): { labels: string[], data: number[] } {
-    const labels = [...Array(days)].map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-    }).reverse();
-
-    const data = labels.map(dateStr => {
-      return this.dataService.getInvoices()
-        .filter(inv => !inv.id.startsWith('MANUAL-'))
-        .reduce((sum, inv) => {
-          const invDate = new Date(inv.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-          return invDate === dateStr ? sum + (inv.totalAmount || inv.productPrice || 0) : sum;
-        }, 0);
-    });
-
-    return { labels, data };
+    // Không dùng nữa vì đã có buildChartDataFromRange
+    return { labels: [], data: [] };
   }
 
   private buildChartDataFromRange(start: Date, end: Date): { labels: string[], data: number[] } {

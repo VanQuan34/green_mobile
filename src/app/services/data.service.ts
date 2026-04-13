@@ -88,8 +88,12 @@ export class DataService {
     ).subscribe();
   }
 
-  getDashboardStats(): Observable<DashboardStats> {
-    return this.http.get<DashboardStats>(`${this.apiUrl}/dashboard/stats`).pipe(
+  getDashboardStats(startDate?: string, endDate?: string): Observable<DashboardStats> {
+    const params: any = {};
+    if (startDate) params.from_date = startDate;
+    if (endDate) params.to_date = endDate;
+
+    return this.http.get<DashboardStats>(`${this.apiUrl}/dashboard/stats`, { params }).pipe(
       tap(stats => this.statsSubject.next(stats)),
       catchError(err => {
         console.error('Lỗi khi tải thống kê Dashboard', err);

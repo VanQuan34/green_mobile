@@ -904,30 +904,75 @@ function gm_sync_to_google_sheet($invoice_data) {
 /**
  * 8. DASHBOARD STATS HELPER
  */
-function gm_handle_get_dashboard_stats() {
+function gm_handle_get_dashboard_stats($request) {
     global $wpdb;
     $table_products = $wpdb->prefix . 'gm_products';
     $table_invoices = $wpdb->prefix . 'gm_invoices';
+    $table_items = $wpdb->prefix . 'gm_invoice_items';
     
-    // 1. Đếm sản phẩm đã bán và tồn kho
+    // Lấy tham số lọc thời gian
+    $from_date = $request->get_param('from_date');
+    $to_date = $request->get_param('to_date');
+    
+    // Điều kiện lọc chung cho hóa đơn (Sử dụng alias 'i')
+    $inv_where = " WHERE i.id NOT LIKE 'MANUAL-%' ";
+    $inv_params = array();
+    
+    if (!empty($from_date) && !empty($to_date)) {
+        $start = sanitize_text_field($from_date) . ' 00:00:00';
+        $end = sanitize_text_field($to_date) . ' 23:59:59';
+        $inv_where .= " AND i.created_at BETWEEN %s AND %s ";
+        $inv_params[] = $start;
+        $inv_params[] = $end;
+    }
+    
+    // 1. Đếm sản phẩm đã bán và tồn kho (Vẫn lấy tổng thực tế của kho hàng hiện tại)
     $sold_count = (int)$wpdb->get_var("SELECT COUNT(*) FROM $table_products WHERE sale = 1") ?: 0;
     $inventory_count = (int)$wpdb->get_var("SELECT COUNT(*) FROM $table_products WHERE sale = 0") ?: 0;
-    
-    // 2. Tổng vốn (Giá gốc của TOÀN BỘ sản phẩm: cả đã bán và chưa bán)
     $total_capital = (int)$wpdb->get_var("SELECT SUM(original_price) FROM $table_products") ?: 0;
-    
-    // 3. Doanh thu dự kiến (Giá bán của TOÀN BỘ sản phẩm nếu bán sạch)
     $total_expected_revenue = (int)$wpdb->get_var("SELECT SUM(selling_price) FROM $table_products") ?: 0;
     
-    // 4. Doanh thu và thực thu từ hóa đơn (Loại bỏ các hóa đơn nợ nhập ngoài MANUAL-)
-    $revenue_data = $wpdb->get_row("
-        SELECT SUM(amount_paid + debt) as total_revenue, SUM(amount_paid) as total_paid, SUM(debt) as total_debt 
-        FROM $table_invoices 
-        WHERE id NOT LIKE 'MANUAL-%'
-    ");
+    // 2. Doanh thu và thực thu từ hóa đơn (Có áp dụng bộ lọc)
+    $revenue_sql = "SELECT SUM(i.amount_paid + i.debt) as total_revenue, SUM(i.amount_paid) as total_paid 
+                    FROM $table_invoices i 
+                    $inv_where";
+    if (!empty($inv_params)) $revenue_sql = $wpdb->prepare($revenue_sql, ...$inv_params);
+    $revenue_data = $wpdb->get_row($revenue_sql);
     
-    // 5. Tổng nợ (bao gồm cả nợ nhập ngoài)
-    $total_debt = (int)$wpdb->get_var("SELECT SUM(debt) FROM $table_invoices") ?: 0;
+    // 3. Tổng nợ (Bao gồm cả nợ nhập ngoài - Có áp dụng bộ lọc)
+    $debt_where_clause = " WHERE d.id IS NOT NULL ";
+    $debt_params = array();
+    if (!empty($from_date) && !empty($to_date)) {
+        $start = sanitize_text_field($from_date) . ' 00:00:00';
+        $end = sanitize_text_field($to_date) . ' 23:59:59';
+        $debt_where_clause .= " AND d.created_at BETWEEN %s AND %s ";
+        $debt_params[] = $start;
+        $debt_params[] = $end;
+    }
+    $debt_sql = "SELECT SUM(d.debt) FROM $table_invoices d $debt_where_clause";
+    if (!empty($debt_params)) $debt_sql = $wpdb->prepare($debt_sql, ...$debt_params);
+    $total_debt = (int)$wpdb->get_var($debt_sql) ?: 0;
+
+    // 4. Tính lợi nhuận (Profit)
+    // Nguồn 1: Từ chi tiết hóa đơn (đơn hàng mới có invoice_items)
+    $profit_items_sql = "SELECT SUM(it.price - IFNULL(p.original_price, 0)) 
+                         FROM $table_items it
+                         JOIN $table_invoices i ON it.invoice_id = i.id
+                         LEFT JOIN $table_products p ON it.product_id = p.id
+                         $inv_where";
+    if (!empty($inv_params)) $profit_items_sql = $wpdb->prepare($profit_items_sql, ...$inv_params);
+    $profit_from_items = (int)$wpdb->get_var($profit_items_sql) ?: 0;
+    
+    // Nguồn 2: Từ thông tin sản phẩm trực tiếp trên hóa đơn (cho đơn hàng cũ không có items chi tiết)
+    $profit_legacy_sql = "SELECT SUM(i.product_price - IFNULL(p.original_price, 0)) 
+                          FROM $table_invoices i
+                          LEFT JOIN $table_products p ON i.product_id = p.id
+                          $inv_where 
+                          AND i.id NOT IN (SELECT DISTINCT invoice_id FROM $table_items)";
+    if (!empty($inv_params)) $profit_legacy_sql = $wpdb->prepare($profit_legacy_sql, ...$inv_params);
+    $profit_from_legacy = (int)$wpdb->get_var($profit_legacy_sql) ?: 0;
+    
+    $total_profit = $profit_from_items + $profit_from_legacy;
     
     return new WP_REST_Response(array(
         'soldCount'             => $sold_count,
@@ -936,7 +981,8 @@ function gm_handle_get_dashboard_stats() {
         'totalPaid'             => (int)($revenue_data->total_paid ?? 0),
         'totalDebt'             => $total_debt,
         'totalCapital'          => $total_capital,
-        'totalExpectedRevenue'  => $total_expected_revenue
+        'totalExpectedRevenue'  => $total_expected_revenue,
+        'totalProfit'           => $total_profit
     ), 200);
 }
 

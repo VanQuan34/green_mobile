@@ -166,11 +166,17 @@ struct InvoiceDetailView: View {
             Section(header: Text("Sản phẩm")) {
                 ForEach(invoice.products ?? []) { product in
                     HStack {
-                        VStack(alignment: .leading) {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(product.name)
-                            Text(product.last4Imei)
-                                .font(.caption2)
+                                .font(.system(size: 15, weight: .semibold))
+                            
+                            Text("IMEI: \(product.imei ?? "N/A")")
+                                .font(.system(size: 13))
                                 .foregroundColor(.secondary)
+                            
+                            Text("\(product.capacity ?? "0")GB | \(product.color ?? "Không rõ")")
+                                .font(.system(size: 12))
+                                .foregroundColor(AppTheme.primary)
                         }
                         Spacer()
                         Text(product.sellingPrice?.formatVND() ?? "0đ")

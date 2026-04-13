@@ -9,11 +9,12 @@ struct DashboardStats: Codable {
     var soldCount: Int = 0
     var inventoryCount: Int = 0
     var totalCapital: Int = 0
-    var totalExpectedRevenue: Int = 0
+    var expectedTotalRevenue: Int = 0
     var last7DaysRevenue: [Date: Int] = [:]
     
     enum CodingKeys: String, CodingKey {
-        case totalRevenue, totalPaid, totalDebt, soldCount, inventoryCount, totalCapital, totalExpectedRevenue
+        case totalRevenue, totalPaid, totalDebt, soldCount, inventoryCount, totalCapital
+        case expectedTotalRevenue = "totalExpectedRevenue"
     }
 }
 
@@ -119,7 +120,7 @@ class DataManager: ObservableObject {
                 self.dashboardStats.totalPaid = data.totalPaid
                 self.dashboardStats.totalDebt = data.totalDebt
                 self.dashboardStats.totalCapital = data.totalCapital
-                self.dashboardStats.totalExpectedRevenue = data.totalExpectedRevenue
+                self.dashboardStats.expectedTotalRevenue = data.expectedTotalRevenue
                 
                 self.calculateDashboardStats()
             }
@@ -187,7 +188,7 @@ class DataManager: ObservableObject {
                 return sum // Standard approach for multi-product
             }
         }
-        stats.totalInventoryValue = unsoldCapital + soldCapital
+        stats.totalCapital = unsoldCapital + soldCapital
         
         let currentUnsoldRevenue = unsoldProducts.reduce(0) { $0 + ($1.sellingPrice ?? 0) }
         stats.expectedTotalRevenue = stats.totalRevenue + currentUnsoldRevenue

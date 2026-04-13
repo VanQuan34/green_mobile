@@ -146,4 +146,31 @@ struct Customer: Codable, Identifiable {
     let name: String
     let phone: String
     let address: String
+    
+    enum CodingKeys: String, CodingKey {
+        case p_id, name, phone, address
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        if let idInt = try? container.decode(Int.self, forKey: .p_id) {
+            self.p_id = idInt
+        } else if let idStr = try? container.decode(String.self, forKey: .p_id), let idInt = Int(idStr) {
+            self.p_id = idInt
+        } else {
+            self.p_id = 0
+        }
+        
+        self.name = (try? container.decode(String.self, forKey: .name)) ?? "No Name"
+        self.phone = (try? container.decode(String.self, forKey: .phone)) ?? ""
+        self.address = (try? container.decode(String.self, forKey: .address)) ?? ""
+    }
+    
+    init(p_id: Int, name: String, phone: String, address: String) {
+        self.p_id = p_id
+        self.name = name
+        self.phone = phone
+        self.address = address
+    }
 }

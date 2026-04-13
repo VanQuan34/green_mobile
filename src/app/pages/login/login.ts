@@ -17,10 +17,10 @@ import { inject } from '@angular/core';
           <div class="logo">
             <span class="dot"></span>
             <ng-container *ngIf="settings$ | async as settings">
-              <h1 *ngIf="(settings.logo_type || 'text') === 'text'">{{ settings.logo_value || 'Di Động Xanh' }}</h1>
+              <h1 *ngIf="(settings.logo_type || 'text') === 'text'">{{ settings.logo_value || 'DAN Mobile' }}</h1>
               <img *ngIf="settings.logo_type === 'image'" [src]="settings.logo_value" class="logo-img" alt="Logo">
             </ng-container>
-            <h1 *ngIf="!(settings$ | async)">Di Động Xanh</h1>
+            <h1 *ngIf="!(settings$ | async)">DAN Mobile</h1>
           </div>
           <p>Chào mừng quay trở lại!</p>
         </div>
@@ -58,7 +58,7 @@ import { inject } from '@angular/core';
         </form>
         
         <div class="login-footer">
-          <p>© 2026 {{ (settings$ | async)?.logo_value || 'Di Động Xanh' }} - Hệ thống Quản trị</p>
+          <p>© 2026 {{ (settings$ | async)?.logo_value || 'DAN Mobile' }} - Hệ thống Quản trị</p>
         </div>
       </div>
     </div>

@@ -19,23 +19,18 @@ struct LoginView: View {
                 
                 // Logo & Header
                 VStack(spacing: 15) {
-                    Image(systemName: "leaf.fill") // Placeholder logo, user should replace with Assets logo
+                    Image("LaunchIcon")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 80, height: 80)
-                        .foregroundColor(AppTheme.primary)
-                        .padding()
-                        .background(
-                            Circle()
-                                .fill(Color.white)
-                                .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
-                        )
+                        .cornerRadius(16)
+                        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
                     
-                    Text("Green Mobile")
+                    Text("DAN Mobile")
                         .font(.system(size: 32, weight: .bold, design: .rounded))
                         .foregroundColor(AppTheme.textMain)
                     
-                    Text("Đăng nhập để tiếp quản lý")
+                    Text("Đăng nhập để quản lý hệ thống")
                         .font(.subheadline)
                         .foregroundColor(AppTheme.textMuted)
                 }
@@ -138,7 +133,7 @@ struct LoginView: View {
                 Spacer()
                 
                 // Footer
-                Text("Bản quyền © 2024 Green Mobile")
+                Text("Bản quyền © 2026 DAN Mobile")
                     .font(.system(size: 12))
                     .foregroundColor(AppTheme.textMuted)
                     .padding(.bottom, 20)

@@ -92,7 +92,7 @@ struct FinancialSection: View {
         VStack(spacing: 15) {
             HStack(spacing: 15) {
                 KPICard(title: "Tổng vốn (Giá gốc)", 
-                        value: dataManager.dashboardStats.totalInventoryValue.formatVND(), 
+                        value: dataManager.dashboardStats.totalCapital.formatVND(), 
                         icon: "briefcase.fill", 
                         color: .cyan)
                 

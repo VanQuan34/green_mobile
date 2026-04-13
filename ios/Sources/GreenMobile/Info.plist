@@ -28,7 +28,7 @@
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIImageName</key>
-		<string>AppLogo</string>
+		<string>LaunchIcon</string>
 		<key>UIColorName</key>
 		<string>LaunchBackground</string>
 	</dict>

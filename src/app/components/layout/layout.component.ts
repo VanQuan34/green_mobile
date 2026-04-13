@@ -20,7 +20,7 @@ import { inject } from '@angular/core';
               <h2 *ngIf="(settings.logo_type || 'text') === 'text'">{{ settings.logo_value || '' }}</h2>
               <img *ngIf="settings.logo_type === 'image'" [src]="settings.logo_value" class="logo-img" alt="Logo">
             </ng-container>
-            <h2 *ngIf="!(settings$ | async)">Di Động Xanh</h2>
+            <h2 *ngIf="!(settings$ | async)">DAN Mobile</h2>
           </div>
           <button class="menu-close-btn" (click)="toggleMobileMenu()">✕</button>
         </div>
@@ -351,6 +351,6 @@ export class LayoutComponent {
     if (url.includes('debts')) return 'Quản lý Công nợ';
     if (url.includes('settings')) return 'Cài đặt hệ thống';
     if (url.includes('customers')) return 'Danh sách khách hàng';
-    return 'Di Động Xanh';
+    return 'DAN Mobile';
   }
 }

@@ -13,10 +13,11 @@ import { Customer } from '../../models/data.models';
     <div class="customer-page scale-in">
       <div class="action-bar glass-card">
         <div class="search-box">
-          <span class="search-icon">🔍</span>
+          <span class="search-icon"><i class="ri-search-line"></i></span>
           <input 
             type="text" 
             [(ngModel)]="searchQuery" 
+            class="form-input-with-icon"
             placeholder="Tìm tên hoặc số điện thoại..."
             (input)="onSearch()"
           >
@@ -44,14 +45,14 @@ import { Customer } from '../../models/data.models';
               <td><code>{{ customer.phone }}</code></td>
               <td>{{ customer.address }}</td>
               <td>
-                <button class="btn-icon blue" (click)="openEditModal(customer)" title="Sửa">
-                  ✏️
+                <button class="btn-icon blue ri-v-adjust" (click)="openEditModal(customer)" title="Sửa">
+                  <i class="ri-edit-line"></i>
                 </button>
               </td>
             </tr>
             <tr *ngIf="filteredCustomers.length === 0">
               <td colspan="5" class="empty-state">
-                <div class="empty-icon">👥</div>
+                <div class="empty-icon"><i class="ri-group-line"></i></div>
                 <p>Không tìm thấy khách hàng nào</p>
               </td>
             </tr>
@@ -65,49 +66,50 @@ import { Customer } from '../../models/data.models';
           <div class="modal-content glass-card slide-up full-width-modal" (click)="$event.stopPropagation()">
             <div class="modal-header">
               <div class="header-title">
-                <span class="header-icon">👤</span>
+                <span class="header-icon"><i class="ri-user-line"></i></span>
                 <h3>Chỉnh sửa thông tin khách hàng</h3>
               </div>
-              <button class="close-btn" (click)="closeEditModal()">✕</button>
+              <button class="close-btn" (click)="closeEditModal()"><i class="ri-close-line"></i></button>
             </div>
             
             <div class="modal-body scrollable">
               <div class="form-grid">
                 <div class="form-group full-width">
                   <label>Họ và tên</label>
-                  <div class="input-wrapper">
-                    <span class="input-icon">👤</span>
-                    <input type="text" [(ngModel)]="editingCustomer.name" placeholder="Nhập họ và tên khách hàng...">
+                  <div class="form-input-container input-wrapper">
+                    <i class="ri-user-line form-input-icon"></i>
+                    <input type="text" [(ngModel)]="editingCustomer.name" class="form-input-with-icon" placeholder="Nhập họ và tên khách hàng...">
                   </div>
                 </div>
                 
                 <div class="form-group full-width">
                   <label>Số điện thoại</label>
-                  <div class="input-wrapper">
-                    <span class="input-icon">📞</span>
-                    <input type="text" [(ngModel)]="editingCustomer.phone" placeholder="Nhập số điện thoại...">
+                  <div class="form-input-container input-wrapper">
+                    <i class="ri-phone-line form-input-icon"></i>
+                    <input type="text" [(ngModel)]="editingCustomer.phone" class="form-input-with-icon" placeholder="Nhập số điện thoại...">
                   </div>
                 </div>
                 
                 <div class="form-group full-width">
                   <label>Địa chỉ</label>
-                  <div class="input-wrapper align-top">
-                    <span class="input-icon">📍</span>
-                    <textarea [(ngModel)]="editingCustomer.address" placeholder="Nhập địa chỉ chi tiết..."></textarea>
+                  <div class="form-input-container input-wrapper align-top">
+                    <i class="ri-map-pin-line form-input-icon"></i>
+                    <textarea [(ngModel)]="editingCustomer.address" class="form-input-with-icon" placeholder="Nhập địa chỉ chi tiết..."></textarea>
                   </div>
                 </div>
               </div>
             </div>
             
-            <div class="modal-footer">
-              <button class="btn btn-outline" (click)="closeEditModal()">
-                <span>Hủy bỏ</span>
-              </button>
-              <button class="btn btn-primary" (click)="saveCustomer()">
-                <span class="btn-icon-s">💾</span>
-                <span>Lưu thay đổi</span>
-              </button>
-            </div>
+              <div class="modal-footer">
+                <button class="btn btn-outline" (click)="closeEditModal()">
+                  <i class="ri-close-line"></i>
+                  <span>Hủy bỏ</span>
+                </button>
+                <button class="btn btn-primary" (click)="saveCustomer()">
+                  <i class="ri-save-line ri-v-adjust"></i>
+                  <span>Lưu thay đổi</span>
+                </button>
+              </div>
           </div>
         </div>
       </div>
@@ -344,11 +346,12 @@ import { Customer } from '../../models/data.models';
       align-items: center;
     }
 
-    .input-icon {
+    .form-input-icon {
       position: absolute;
       left: 1rem;
       color: #94a3b8;
       font-size: 1rem;
+      pointer-events: none;
     }
 
     .input-wrapper input, .input-wrapper textarea {

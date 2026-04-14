@@ -16,7 +16,7 @@ import * as XLSX from 'xlsx';
     <div class="invoice-page animate-fade-in">
       <div class="list-header">
         <div class="search-bar glass-card">
-          <span class="icon">🔍</span>
+          <span class="icon"><i class="ri-search-line"></i></span>
           <input 
             type="text" 
             [(ngModel)]="searchQuery" 
@@ -36,7 +36,7 @@ import * as XLSX from 'xlsx';
           </div>
 
           <button class="btn-export glass-card" (click)="exportToExcel()" title="Xuất danh sách ra Excel">
-            <span>📊</span>
+            <i class="ri-file-excel-2-line ri-v-adjust"></i>
             <span class="btn-text">Xuất Excel</span>
           </button>
         </div>
@@ -45,15 +45,15 @@ import * as XLSX from 'xlsx';
       <!-- Tab Navigation -->
       <div class="tabs-container glass-card">
         <button class="tab-item" [class.active]="activeTab === 'all'" (click)="setTab('all')">
-          <span class="tab-icon">📄</span> Tất cả
+          <i class="ri-file-list-3-line tab-icon"></i> Tất cả
           <span class="tab-count">{{ invoices.length }}</span>
         </button>
         <button class="tab-item" [class.active]="activeTab === 'paid'" (click)="setTab('paid')">
-          <span class="tab-icon">✅</span> Đã thanh toán
+          <i class="ri-checkbox-circle-line tab-icon"></i> Đã thanh toán
           <span class="tab-count">{{ getPaidCount() }}</span>
         </button>
         <button class="tab-item" [class.active]="activeTab === 'debt'" (click)="setTab('debt')">
-          <span class="tab-icon">⏳</span> Còn nợ
+          <i class="ri-time-line tab-icon"></i> Còn nợ
           <span class="tab-count">{{ getDebtCount() }}</span>
         </button>
       </div>
@@ -108,11 +108,11 @@ import * as XLSX from 'xlsx';
               <td class="text-muted">{{ invoice.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
               <td class="actions-cell">
                 <div class="btn-group" (click)="$event.stopPropagation()">
-                  <button class="btn-icon" title="Cập nhật" (click)="updateInvoice(invoice)">
-                    <span>✏️</span>
+                  <button class="btn-icon ri-v-adjust" title="Cập nhật" (click)="updateInvoice(invoice)">
+                    <i class="ri-edit-line"></i>
                   </button>
-                  <button class="btn-icon btn-delete" title="Xóa" (click)="deleteInvoice(invoice.id)">
-                    <span>🗑️</span>
+                  <button class="btn-icon btn-delete ri-v-adjust" title="Xóa" (click)="deleteInvoice(invoice.id)">
+                    <i class="ri-delete-bin-line"></i>
                   </button>
                 </div>
               </td>
@@ -120,7 +120,7 @@ import * as XLSX from 'xlsx';
             <tr *ngIf="filteredInvoices.length === 0">
               <td colspan="6" class="empty-state">
                 <div class="empty-msg">
-                  <span>📄</span>
+                  <i class="ri-file-list-3-line" style="font-size: 3rem; opacity: 0.5;"></i>
                   <p>Không có hóa đơn nào phù hợp với bộ lọc.</p>
                 </div>
               </td>

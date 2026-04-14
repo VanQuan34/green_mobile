@@ -217,6 +217,23 @@ td:last-child {
   transform: none;
 }
 
+/* --- Icon Utilities --- */
+.ri-v-adjust { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; line-height: 1; }
+.icon-sm { font-size: 1rem; }
+.icon-md { font-size: 1.25rem; }
+.icon-lg { font-size: 1.5rem; }
+
+[class^="ri-"], [class*=" ri-"] { vertical-align: middle; line-height: 1; }
+
+.btn-preline [class^="ri-"], .btn-preline [class*=" ri-"] { margin-right: 0.375rem; font-size: 1.15em; }
+.btn-icon [class^="ri-"], .btn-icon [class*=" ri-"] { margin-right: 0; font-size: 1.25em; }
+
+.form-input-container { position: relative; display: flex; align-items: center; }
+.form-input-icon { position: absolute; left: 1rem; color: var(--gray-400); font-size: 1.15rem; pointer-events: none; }
+.form-input-with-icon { padding-left: 2.75rem !important; }
+
+.badge-preline [class^="ri-"] { margin-right: 0.25rem; font-size: 0.95em; vertical-align: -0.05em; }
+
 /* Responsive Utilities */
 @media (max-width: 1024px) {
   th, td {

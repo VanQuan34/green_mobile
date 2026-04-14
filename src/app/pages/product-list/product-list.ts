@@ -25,7 +25,7 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
     <div class="product-page">
       <div class="action-bar animate-fade-in">
         <div class="search-box">
-          <span class="search-icon">🔍</span>
+          <span class="search-icon"><i class="ri-search-line"></i></span>
           <input 
             type="text" 
             [(ngModel)]="searchQuery" 
@@ -40,7 +40,7 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
             class="btn btn-invoice animate-scale-up" 
             (click)="createBulkInvoice()"
           >
-            <span class="icon">🧾</span>
+             <span class="icon"><i class="ri-file-list-3-line ri-v-adjust"></i></span>
             <span>Lập hóa đơn ({{ selectedProductsMap.size }})</span>
           </button>
           <button 
@@ -48,11 +48,11 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
             class="btn btn-outline animate-scale-up" 
             (click)="clearAllSelections()"
           >
-            <span class="icon">✕</span>
+            <span class="icon"><i class="ri-close-line ri-v-adjust"></i></span>
             <span>Hủy chọn</span>
           </button>
           <button class="btn btn-primary" (click)="openProductModal()">
-            <span class="icon">+</span>
+            <span class="icon"><i class="ri-add-line ri-v-adjust font-bold"></i></span>
             <span>Thêm sản phẩm</span>
           </button>
         </div>
@@ -101,16 +101,16 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
               <td class="font-bold text-primary">{{ product.sellingPrice | number }}đ</td>
               <td class="actions-cell">
                 <div class="btn-group" (click)="$event.stopPropagation()">
-                  <button class="btn-icon btn-edit tooltip-left" data-tooltip="Sửa" (click)="editProduct(product)">✏️</button>
-                  <button class="btn-icon btn-delete tooltip-left" data-tooltip="Xóa" (click)="deleteProduct(product.id)">🗑️</button>
-                  <button class="btn-icon btn-invoice tooltip-left" data-tooltip="Lập hóa đơn" (click)="createInvoice(product)">🧾</button>
+                  <button class="btn-icon btn-edit tooltip-left" data-tooltip="Sửa" (click)="editProduct(product)"><i class="ri-edit-line"></i></button>
+                  <button class="btn-icon btn-delete tooltip-left" data-tooltip="Xóa" (click)="deleteProduct(product.id)"><i class="ri-delete-bin-line"></i></button>
+                  <button class="btn-icon btn-invoice tooltip-left" data-tooltip="Lập hóa đơn" (click)="createInvoice(product)"><i class="ri-file-list-3-line"></i></button>
                 </div>
               </td>
             </tr>
             <tr *ngIf="!loading && paginatedProducts.length === 0">
               <td colspan="11" class="empty-state">
                 <div class="empty-msg">
-                  <span>📭</span>
+                  <span style="font-size: 3rem; opacity: 0.5;"><i class="ri-inbox-line"></i></span>
                   <p>Không tìm thấy sản phẩm nào.</p>
                 </div>
               </td>

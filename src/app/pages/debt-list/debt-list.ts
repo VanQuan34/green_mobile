@@ -49,19 +49,25 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
 
         <div class="action-group">
           <button class="btn btn-primary btn-add" (click)="showManualDebtModal = true">
-            <span class="icon">+</span> Quản lý nợ ngoài
+            <i class="ri-add-line ri-v-adjust"></i> Quản lý nợ ngoài
           </button>
         </div>
       </div>
 
       <div class="stats-cards animate-fade-in">
         <div class="stat-card glass-card">
-          <div class="stat-label">Tổng số khách nợ</div>
-          <div class="stat-value">{{ filteredDebts.length }}</div>
+          <div class="stat-icon blue"><i class="ri-group-line"></i></div>
+          <div class="stat-content">
+            <div class="stat-label">Tổng số khách nợ</div>
+            <div class="stat-value">{{ filteredDebts.length }}</div>
+          </div>
         </div>
         <div class="stat-card glass-card primary">
-          <div class="stat-label">Tổng tiền nợ</div>
-          <div class="stat-value">{{ totalDebtAmount | number }}đ</div>
+          <div class="stat-icon emerald"><i class="ri-money-dollar-circle-line"></i></div>
+          <div class="stat-content">
+            <div class="stat-label">Tổng tiền nợ</div>
+            <div class="stat-value">{{ totalDebtAmount | number }}đ</div>
+          </div>
         </div>
       </div>
 
@@ -108,7 +114,7 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
                 </div>
               </td>
               <td>
-                <button class="btn btn-sm btn-outline">Chi tiết</button>
+                <button class="btn btn-sm btn-outline"><i class="ri-eye-line"></i> Chi tiết</button>
               </td>
             </tr>
             <tr *ngIf="filteredDebts.length === 0">
@@ -187,21 +193,38 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
 
     .stat-card {
       padding: 1.5rem;
-      text-align: center;
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      text-align: left;
     }
+    
+    .stat-icon {
+      width: 54px;
+      height: 54px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+    
+    .stat-icon.blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+    .stat-icon.emerald { background: rgba(16, 185, 129, 0.1); color: #10b981; }
 
     .stat-card.primary {
       border-left: 4px solid var(--primary);
     }
 
     .stat-label {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
+      font-weight: 600;
       color: var(--text-muted);
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.25rem;
     }
 
     .stat-value {
-      font-size: 1.75rem;
+      font-size: 1.5rem;
       font-weight: 800;
       color: var(--text-main);
     }

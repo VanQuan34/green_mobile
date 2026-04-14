@@ -64,7 +64,7 @@ Chart.register(...registerables);
               class="filter-tab-btn" 
               [class.active]="selectedPeriod === 'custom'"
               (click)="onPeriodChange('custom')">
-              📅 Tùy chọn
+              <i class="ri-calendar-line ri-v-adjust mr-1"></i> Tùy chọn
             </button>
           </div>
         </div>
@@ -85,35 +85,35 @@ Chart.register(...registerables);
       <!-- KPI Cards -->
       <div class="kpi-grid">
         <div class="kpi-card glass-card">
-          <div class="kpi-icon blue">💰</div>
+          <div class="kpi-icon blue"><i class="ri-money-dollar-circle-line"></i></div>
           <div class="kpi-content">
             <label>Tổng doanh thu</label>
             <div class="value">{{ stats.totalRevenue | number }}đ</div>
           </div>
         </div>
         <div class="kpi-card glass-card">
-          <div class="kpi-icon green">✅</div>
+          <div class="kpi-icon green"><i class="ri-checkbox-circle-line"></i></div>
           <div class="kpi-content">
             <label>Thực thu (Đã trả)</label>
             <div class="value">{{ stats.totalPaid | number }}đ</div>
           </div>
         </div>
         <div class="kpi-card glass-card">
-          <div class="kpi-icon orange">📈</div>
+          <div class="kpi-icon orange"><i class="ri-line-chart-line"></i></div>
           <div class="kpi-content">
             <label>Lợi nhuận gộp</label>
             <div class="value text-green">{{ stats.totalProfit | number }}đ</div>
           </div>
         </div>
         <div class="kpi-card glass-card">
-          <div class="kpi-icon yellow">⏳</div>
+          <div class="kpi-icon yellow"><i class="ri-hand-coin-line"></i></div>
           <div class="kpi-content">
             <label>Tổng công nợ</label>
             <div class="value text-red">{{ stats.totalDebt | number }}đ</div>
           </div>
         </div>
         <div class="kpi-card glass-card">
-          <div class="kpi-icon purple">📱</div>
+          <div class="kpi-icon purple"><i class="ri-smartphone-line"></i></div>
           <div class="kpi-content">
             <label>Máy đã bán / Tồn</label>
             <div class="value">{{ stats.soldCount }} / {{ stats.inventoryCount }}</div>
@@ -124,14 +124,14 @@ Chart.register(...registerables);
       <!-- Special KPI Row (Inventory related, usually not affected by time filter) -->
       <div class="kpi-row-special">
         <div class="kpi-card glass-card cyan">
-          <div class="kpi-icon cyan">📊</div>
+          <div class="kpi-icon cyan"><i class="ri-database-2-line"></i></div>
           <div class="kpi-content">
             <label>Tổng vốn (Toàn bộ kho)</label>
             <div class="value">{{ stats.totalInventoryValue | number }}đ</div>
           </div>
         </div>
         <div class="kpi-card glass-card indigo">
-          <div class="kpi-icon indigo">🎯</div>
+          <div class="kpi-icon indigo"><i class="ri-focus-3-line"></i></div>
           <div class="kpi-content">
             <label>Giá trị kho (Dự kiến bán hết)</label>
             <div class="value">{{ stats.expectedTotalRevenue | number }}đ</div>

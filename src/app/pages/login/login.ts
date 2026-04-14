@@ -28,29 +28,38 @@ import { inject } from '@angular/core';
         <form (ngSubmit)="onLogin()">
           <div class="form-group">
             <label class="required">Tên đăng nhập</label>
-            <input 
-              type="text" 
-              [(ngModel)]="username" 
-              name="username" 
-              placeholder="Nhập tên đăng nhập..." 
-              required
-              [disabled]="loading"
-            >
+            <div class="form-input-container">
+              <i class="ri-user-line form-input-icon"></i>
+              <input 
+                type="text" 
+                [(ngModel)]="username" 
+                name="username" 
+                class="form-input-with-icon"
+                placeholder="Nhập tên đăng nhập..." 
+                required
+                [disabled]="loading"
+              >
+            </div>
           </div>
 
           <div class="form-group">
             <label class="required">Mật khẩu</label>
-            <input 
-              type="password" 
-              [(ngModel)]="password" 
-              name="password" 
-              placeholder="Nhập mật khẩu..." 
-              required
-              [disabled]="loading"
-            >
+            <div class="form-input-container">
+              <i class="ri-lock-line form-input-icon"></i>
+              <input 
+                type="password" 
+                [(ngModel)]="password" 
+                name="password" 
+                class="form-input-with-icon"
+                placeholder="Nhập mật khẩu..." 
+                required
+                [disabled]="loading"
+              >
+            </div>
           </div>
           
           <button type="submit" class="btn btn-primary btn-block" [disabled]="loading">
+            <i class="ri-login-circle-line ri-v-adjust" *ngIf="!loading"></i>
             {{ loading ? 'Đang xác thực...' : 'Đăng nhập hệ thống' }}
           </button>
           

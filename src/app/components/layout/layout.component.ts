@@ -22,39 +22,39 @@ import { inject } from '@angular/core';
             </ng-container>
             <h2 *ngIf="!(settings$ | async)">DAN Mobile</h2>
           </div>
-          <button class="menu-close-btn" (click)="toggleMobileMenu()">✕</button>
+          <button class="menu-close-btn" (click)="toggleMobileMenu()"><i class="ri-close-line"></i></button>
         </div>
         
         <nav class="sidebar-nav">
           <a routerLink="/dashboard" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()">
-            <span class="icon">📊</span>
+            <span class="icon"><i class="ri-bar-chart-box-line"></i></span>
             <span>Tổng quan</span>
           </a>
           <a routerLink="/products" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()">
-            <span class="icon">📱</span>
+            <span class="icon"><i class="ri-smartphone-line"></i></span>
             <span>Sản phẩm</span>
           </a>
           <a routerLink="/invoices" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()">
-            <span class="icon">🧾</span>
+            <span class="icon"><i class="ri-file-list-3-line"></i></span>
             <span>Hóa đơn</span>
           </a>
           <a routerLink="/debts" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()">
-            <span class="icon">💳</span>
+            <span class="icon"><i class="ri-bank-card-line"></i></span>
             <span>Công nợ</span>
           </a>
           <a routerLink="/customers" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()">
-            <span class="icon">👥</span>
+            <span class="icon"><i class="ri-group-line"></i></span>
             <span>Khách hàng</span>
           </a>
           <a routerLink="/settings" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()">
-            <span class="icon">⚙️</span>
+            <span class="icon"><i class="ri-settings-3-line"></i></span>
             <span>Cài đặt</span>
           </a>
         </nav>
         
         <div class="sidebar-footer">
           <button (click)="onLogout()" class="btn btn-outline btn-logout">
-            <span class="icon">🚪</span>
+            <span class="icon"><i class="ri-logout-box-r-line"></i></span>
             <span>Đăng xuất</span>
           </button>
         </div>
@@ -63,7 +63,7 @@ import { inject } from '@angular/core';
       <main class="main-content">
         <header class="top-bar">
           <div class="page-info">
-            <button class="hamburger-btn" (click)="toggleMobileMenu()">☰</button>
+            <button class="hamburger-btn" (click)="toggleMobileMenu()"><i class="ri-menu-2-line"></i></button>
             <h1 class="page-title">{{ getCurrentPageName() }}</h1>
           </div>
           <div class="user-profile">

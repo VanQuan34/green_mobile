@@ -701,7 +701,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     } else if (this.selectedPeriod === 'custom' && this.customStartDate && this.customEndDate) {
       return this.buildChartDataFromRange(new Date(this.customStartDate), new Date(this.customEndDate));
     }
-    
+
     return { labels: [], data: [] };
   }
 

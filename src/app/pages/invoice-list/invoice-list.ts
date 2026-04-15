@@ -6,12 +6,13 @@ import { Invoice } from '../../models/data.models';
 import { InvoiceDetailModalComponent } from '../../components/invoice-detail-modal/invoice-detail-modal';
 import { InvoiceFormModalComponent } from '../../components/invoice-form-modal/invoice-form-modal';
 import { ExportInvoiceModalComponent } from '../../components/export-invoice-modal/export-invoice-modal';
+import { PasswordModalComponent } from '../../components/password-modal/password-modal';
 import * as XLSX from 'xlsx';
 
 @Component({
   selector: 'app-invoice-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, InvoiceDetailModalComponent, InvoiceFormModalComponent, ExportInvoiceModalComponent],
+  imports: [CommonModule, FormsModule, InvoiceDetailModalComponent, InvoiceFormModalComponent, ExportInvoiceModalComponent, PasswordModalComponent],
   template: `
     <div class="invoice-page animate-fade-in">
       <div class="list-header">
@@ -111,7 +112,7 @@ import * as XLSX from 'xlsx';
                   <button class="btn-icon ri-v-adjust" title="Cập nhật" (click)="updateInvoice(invoice)">
                     <i class="ri-edit-line"></i>
                   </button>
-                  <button class="btn-icon btn-delete ri-v-adjust" title="Xóa" (click)="deleteInvoice(invoice.id)">
+                  <button class="btn-icon btn-delete ri-v-adjust" title="Xóa" (click)="deleteInvoice(invoice)">
                     <i class="ri-delete-bin-line"></i>
                   </button>
                 </div>
@@ -149,6 +150,14 @@ import * as XLSX from 'xlsx';
         *ngIf="showExportModal"
         (close)="showExportModal = false">
       </app-export-invoice-modal>
+
+      <!-- Password Modal -->
+      <app-password-modal
+        *ngIf="showPasswordModal"
+        [invoice]="selectedDeleteInvoice!"
+        (close)="showPasswordModal = false"
+        (deleted)="onDeleteSuccess()">
+      </app-password-modal>
     </div>
   `,
   styles: [`
@@ -436,6 +445,8 @@ export class InvoiceListComponent implements OnInit {
   selectedInvoice: Invoice | null = null;
   editingInvoice: Invoice | null = null;
   showExportModal: boolean = false;
+  showPasswordModal: boolean = false;
+  selectedDeleteInvoice: Invoice | null = null;
 
   constructor(private dataService: DataService) {}
 
@@ -508,11 +519,14 @@ export class InvoiceListComponent implements OnInit {
     });
   }
 
-  deleteInvoice(id: string) {
-    if (confirm('Bạn có chắc chắn muốn xóa hóa đơn này?')) {
-      this.dataService.deleteInvoice(id).subscribe(() => {
-      });
-    }
+  deleteInvoice(invoice: Invoice) {
+    this.selectedDeleteInvoice = invoice;
+    this.showPasswordModal = true;
+  }
+
+  onDeleteSuccess() {
+    this.showPasswordModal = false;
+    this.selectedDeleteInvoice = null;
   }
 
   exportToExcel() {

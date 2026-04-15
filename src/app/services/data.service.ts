@@ -220,17 +220,24 @@ export class DataService {
     this.productsSubject.next(updated);
   }
 
-  deleteInvoice(id: string): Observable<any> {
-    return of(true);
-    return this.http.delete(`${this.apiUrl}/invoices/${id}`).pipe(
+  deleteInvoice(id: string, password: string): Observable<any> {
+    const token = this.authService.getToken();
+    const headers = { 'Authorization': `Bearer ${token}` };
+
+    return this.http.delete(`${this.apiUrl}/invoices/${id}`, {
+      body: { password },
+      headers
+    }).pipe(
       tap(() => {
         const current = this.invoicesSubject.value;
         const updated = current.filter(i => i.id.toString() !== id.toString());
         this.invoicesSubject.next(updated);
-        this.toast.success('Đã xóa hóa đơn');
+        this.getDashboardStats().subscribe(); // Cập nhật thống kê dashboard
+        this.toast.success('Đã xóa hóa đơn và khôi phục trạng thái sản phẩm');
       }),
       catchError(err => {
-        this.toast.error('Lỗi khi xóa hóa đơn');
+        const errorMsg = err.error?.message || 'Lỗi khi xóa hóa đơn';
+        this.toast.error(errorMsg);
         return throwError(() => err);
       })
     );

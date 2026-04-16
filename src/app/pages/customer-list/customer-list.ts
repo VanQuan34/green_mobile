@@ -1,9 +1,10 @@
-import { Component, OnInit, Renderer2, Inject, ElementRef, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, Renderer2, Inject, ElementRef, ViewChild } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { Customer } from '../../models/data.models';
+import { Subject, debounceTime, distinctUntilChanged, Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-customer-list',
@@ -20,14 +21,21 @@ import { Customer } from '../../models/data.models';
             class="form-input-with-icon"
             placeholder="Tìm tên hoặc số điện thoại..."
             (input)="onSearch()"
+            (keyup.enter)="onEnterSearch()"
           >
         </div>
         <div class="stats-badge">
-          Tổng cộng: <b>{{ filteredCustomers.length }}</b> khách hàng
+          Tổng cộng: <b>{{ totalItems }}</b> khách hàng
         </div>
       </div>
 
-      <div class="table-container glass-card">
+      <div class="table-container glass-card" #tableContainer (scroll)="onTableScroll($event)" [class.is-loading]="loading">
+        <!-- Loading overlay -->
+        <div class="loading-overlay" *ngIf="loading">
+          <div class="spinner"></div>
+          <span>Đang tải dữ liệu...</span>
+        </div>
+
         <table style="margin-left: 0;">
           <thead>
             <tr>
@@ -40,7 +48,7 @@ import { Customer } from '../../models/data.models';
           </thead>
           <tbody>
             <tr *ngFor="let customer of filteredCustomers; let i = index">
-              <td>{{ i + 1 }}</td>
+              <td>{{ (currentPage - 1) * perPage + i + 1 > totalItems ? i + 1 : getRowIndex(i) }}</td>
               <td class="font-bold">{{ customer.name }}</td>
               <td><code>{{ customer.phone }}</code></td>
               <td>{{ customer.address }}</td>
@@ -50,10 +58,29 @@ import { Customer } from '../../models/data.models';
                 </button>
               </td>
             </tr>
-            <tr *ngIf="filteredCustomers.length === 0">
+
+            <!-- Empty State -->
+            <tr *ngIf="!loading && filteredCustomers.length === 0">
               <td colspan="5" class="empty-state">
                 <div class="empty-icon"><i class="ri-group-line"></i></div>
                 <p>Không tìm thấy khách hàng nào</p>
+              </td>
+            </tr>
+
+            <!-- Loading More -->
+            <tr *ngIf="loadingMore">
+              <td colspan="5" class="loading-more-cell">
+                <div class="loading-more">
+                  <div class="spinner-small"></div>
+                  <span>Đang tải thêm...</span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- End of List -->
+            <tr *ngIf="!hasMore && filteredCustomers.length > 0 && !loading">
+              <td colspan="5" class="end-of-list">
+                <span>Đã hiển thị tất cả {{ filteredCustomers.length }} khách hàng</span>
               </td>
             </tr>
           </tbody>
@@ -170,6 +197,84 @@ import { Customer } from '../../models/data.models';
 
     .table-container {
       overflow-x: auto;
+      overflow-y: auto;
+      max-height: calc(100dvh - 240px);
+      position: relative;
+      min-height: 200px;
+    }
+
+    @media (max-width: 768px) {
+      .table-container {
+        max-height: calc(100dvh - 300px);
+      }
+    }
+
+    .table-container.is-loading {
+      opacity: 0.7;
+    }
+
+    /* Loading Overlay */
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255,255,255,0.7);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      color: var(--primary);
+      font-weight: 500;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Loading More */
+    .loading-more-cell {
+      padding: 1.5rem !important;
+    }
+
+    .loading-more {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      color: var(--primary);
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+
+    .spinner-small {
+      width: 22px;
+      height: 22px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .end-of-list {
+      text-align: center;
+      padding: 1rem !important;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 500;
     }
 
     table {
@@ -240,16 +345,16 @@ import { Customer } from '../../models/data.models';
       backdrop-filter: blur(8px);
       z-index: 9999;
       display: flex;
-      align-items: flex-end; /* Mobile style: slide from bottom */
+      align-items: flex-end;
       justify-content: center;
     }
 
     .modal-content.full-width-modal {
       width: 100%;
-      max-width: 100%; /* Full width */
+      max-width: 100%;
       height: auto;
       max-height: 92vh;
-      border-radius: 1.5rem 1.5rem 0 0; /* Rounded top for mobile */
+      border-radius: 1.5rem 1.5rem 0 0;
       margin: 0;
       display: flex;
       flex-direction: column;
@@ -262,7 +367,7 @@ import { Customer } from '../../models/data.models';
         padding: 2rem;
       }
       .modal-content.full-width-modal {
-        max-width: 800px; /* Cân đối trên desktop */
+        max-width: 800px;
         border-radius: 1.25rem;
         overflow: hidden;
       }
@@ -434,11 +539,27 @@ import { Customer } from '../../models/data.models';
     }
   `]
 })
-export class CustomerListComponent implements OnInit {
-  customers: Customer[] = [];
+export class CustomerListComponent implements OnInit, OnDestroy {
   filteredCustomers: Customer[] = [];
   searchQuery = '';
 
+  // Pagination state
+  currentPage = 1;
+  perPage = 15;
+  totalItems = 0;
+  hasMore = true;
+  loading = false;
+  loadingMore = false;
+
+  // Scroll threshold
+  private scrollThreshold = 150;
+
+  // Search debounce
+  private searchSubject = new Subject<string>();
+  private searchSubscription?: Subscription;
+  private lastFetchedQuery: string | null = null;
+
+  // Edit modal
   isEditModalOpen = false;
   editingCustomer: Customer = { p_id: 0, name: '', phone: '', address: '' };
   @ViewChild('modalContainer') modalContainer!: ElementRef;
@@ -450,29 +571,95 @@ export class CustomerListComponent implements OnInit {
   ) { }
 
   ngOnInit() {
-    this.dataService.customers$.subscribe(list => {
-      this.customers = list;
-      this.onSearch();
+    this.fetchCustomers(true);
+
+    // Setup debounce search
+    this.searchSubscription = this.searchSubject.pipe(
+      debounceTime(2000),
+      distinctUntilChanged()
+    ).subscribe((query) => {
+      if (this.lastFetchedQuery !== query) {
+        this.onEnterSearch();
+      }
     });
   }
 
-  onSearch() {
-    if (!this.searchQuery.trim()) {
-      this.filteredCustomers = [...this.customers];
-    } else {
-      const q = this.searchQuery.toLowerCase().trim();
-      this.filteredCustomers = this.customers.filter(c =>
-        c.name.toLowerCase().includes(q) ||
-        c.phone.includes(q)
-      );
+  ngOnDestroy() {
+    if (this.searchSubscription) {
+      this.searchSubscription.unsubscribe();
     }
+  }
+
+  fetchCustomers(reset = false) {
+    if (reset) {
+      this.currentPage = 1;
+      this.filteredCustomers = [];
+      this.hasMore = true;
+      this.loading = true;
+    } else {
+      this.loadingMore = true;
+    }
+
+    this.dataService.getCustomersPaginated(
+      this.currentPage,
+      this.perPage,
+      this.searchQuery || undefined
+    ).subscribe({
+      next: (res) => {
+        if (reset) {
+          this.filteredCustomers = res.customers;
+        } else {
+          this.filteredCustomers = [...this.filteredCustomers, ...res.customers];
+        }
+
+        this.totalItems = res.total;
+        this.hasMore = res.customers.length >= this.perPage;
+
+        this.loading = false;
+        this.loadingMore = false;
+        this.lastFetchedQuery = this.searchQuery;
+      },
+      error: () => {
+        this.loading = false;
+        this.loadingMore = false;
+      }
+    });
+  }
+
+  onTableScroll(event: Event) {
+    if (this.loadingMore || !this.hasMore || this.loading) return;
+
+    const el = event.target as HTMLElement;
+    const scrollBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+
+    if (scrollBottom < this.scrollThreshold) {
+      this.loadMore();
+    }
+  }
+
+  loadMore() {
+    if (this.loadingMore || !this.hasMore) return;
+    this.currentPage++;
+    this.fetchCustomers(false);
+  }
+
+  onSearch() {
+    this.searchSubject.next(this.searchQuery);
+  }
+
+  onEnterSearch() {
+    this.fetchCustomers(true);
+  }
+
+  getRowIndex(i: number): number {
+    // Tính STT chính xác dựa trên vị trí trong list đã append
+    return i + 1;
   }
 
   openEditModal(customer: Customer) {
     this.editingCustomer = { ...customer };
     this.isEditModalOpen = true;
 
-    // Append to body after a short delay to ensure modal is rendered
     setTimeout(() => {
       if (this.modalContainer) {
         this.renderer.appendChild(this.document.body, this.modalContainer.nativeElement);
@@ -482,10 +669,6 @@ export class CustomerListComponent implements OnInit {
 
   closeEditModal() {
     this.isEditModalOpen = false;
-    // Move back to component's DOM when closing
-    if (this.modalContainer) {
-      // Technically not strictly necessary but good for cleanup
-    }
   }
 
   saveCustomer() {
@@ -497,6 +680,10 @@ export class CustomerListComponent implements OnInit {
     this.dataService.updateCustomer(this.editingCustomer).subscribe({
       next: () => {
         this.closeEditModal();
+        // Cập nhật local thay vì fetch lại
+        this.filteredCustomers = this.filteredCustomers.map(c =>
+          c.p_id === this.editingCustomer.p_id ? { ...this.editingCustomer } : c
+        );
       }
     });
   }

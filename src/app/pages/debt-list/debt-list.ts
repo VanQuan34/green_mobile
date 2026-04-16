@@ -17,6 +17,7 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
         <div class="filter-group">
           <label>Thời gian:</label>
           <div class="quick-filters">
+            <button class="btn btn-sm" [class.btn-primary]="timeFilter === 'all'" (click)="setTimeFilter('all')">Tất cả</button>
             <button class="btn btn-sm" [class.btn-primary]="timeFilter === '3d'" (click)="setTimeFilter('3d')">3 ngày</button>
             <button class="btn btn-sm" [class.btn-primary]="timeFilter === '7d'" (click)="setTimeFilter('7d')">7 ngày</button>
             <button class="btn btn-sm" [class.btn-primary]="timeFilter === '1m'" (click)="setTimeFilter('1m')">1 tháng</button>
@@ -311,7 +312,7 @@ export class DebtListComponent implements OnInit {
   allInvoices: Invoice[] = [];
   filteredDebts: Invoice[] = [];
 
-  timeFilter: '3d' | '7d' | '1m' | 'custom' = '7d';
+  timeFilter: 'all' | '3d' | '7d' | '1m' | 'custom' = 'all';
   startDate: string = '';
   endDate: string = '';
   searchQuery: string = '';
@@ -335,7 +336,7 @@ export class DebtListComponent implements OnInit {
     // DataService will trigger a refresh via invoices$ subscription
   }
 
-  setTimeFilter(filter: '3d' | '7d' | '1m' | 'custom') {
+  setTimeFilter(filter: 'all' | '3d' | '7d' | '1m' | 'custom') {
     this.timeFilter = filter;
     if (filter !== 'custom') {
       this.applyFilters();
@@ -345,9 +346,9 @@ export class DebtListComponent implements OnInit {
   applyFilters() {
     let list = this.allInvoices.filter(i => i.debt > 0);
 
-    // Time filtering
+    // Time filtering (bỏ qua nếu chọn 'Tất cả')
     const now = new Date();
-    if (this.timeFilter !== 'custom') {
+    if (this.timeFilter !== 'all' && this.timeFilter !== 'custom') {
       const days = this.timeFilter === '3d' ? 3 : this.timeFilter === '7d' ? 7 : 30;
       const cutoff = new Date();
       cutoff.setDate(now.getDate() - days);

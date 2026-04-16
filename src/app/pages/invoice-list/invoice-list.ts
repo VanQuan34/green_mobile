@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
@@ -7,7 +7,7 @@ import { InvoiceDetailModalComponent } from '../../components/invoice-detail-mod
 import { InvoiceFormModalComponent } from '../../components/invoice-form-modal/invoice-form-modal';
 import { ExportInvoiceModalComponent } from '../../components/export-invoice-modal/export-invoice-modal';
 import { PasswordModalComponent } from '../../components/password-modal/password-modal';
-import * as XLSX from 'xlsx';
+import { Subject, debounceTime, distinctUntilChanged, Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-invoice-list',
@@ -22,13 +22,14 @@ import * as XLSX from 'xlsx';
             type="text" 
             [(ngModel)]="searchQuery" 
             placeholder="Tìm theo tên khách, số điện thoại hoặc sản phẩm..."
-            (input)="onFilterChange()"
+            (input)="onSearch()"
+            (keyup.enter)="onEnterSearch()"
           >
         </div>
         <div class="header-actions">
           <div class="sort-controls glass-card">
             <label>Sắp xếp:</label>
-            <select [(ngModel)]="sortOrder" (change)="onFilterChange()">
+            <select [(ngModel)]="sortOrder" (change)="onSortChange()">
               <option value="date_desc">Mới nhất (Mặc định)</option>
               <option value="date_asc">Cũ nhất</option>
               <option value="debt_desc">Nợ cao → thấp</option>
@@ -47,19 +48,25 @@ import * as XLSX from 'xlsx';
       <div class="tabs-container glass-card">
         <button class="tab-item" [class.active]="activeTab === 'all'" (click)="setTab('all')">
           <i class="ri-file-list-3-line tab-icon"></i> Tất cả
-          <span class="tab-count">{{ invoices.length }}</span>
+          <span class="tab-count">{{ totalAll }}</span>
         </button>
         <button class="tab-item" [class.active]="activeTab === 'paid'" (click)="setTab('paid')">
           <i class="ri-checkbox-circle-line tab-icon"></i> Đã thanh toán
-          <span class="tab-count">{{ getPaidCount() }}</span>
+          <span class="tab-count">{{ totalPaid }}</span>
         </button>
         <button class="tab-item" [class.active]="activeTab === 'debt'" (click)="setTab('debt')">
           <i class="ri-time-line tab-icon"></i> Còn nợ
-          <span class="tab-count">{{ getDebtCount() }}</span>
+          <span class="tab-count">{{ totalDebt }}</span>
         </button>
       </div>
 
-      <div class="table-container glass-card">
+      <div class="table-container glass-card" #tableContainer (scroll)="onTableScroll($event)" [class.is-loading]="loading">
+        <!-- Loading overlay cho lần đầu -->
+        <div class="loading-overlay" *ngIf="loading">
+          <div class="spinner"></div>
+          <span>Đang tải dữ liệu...</span>
+        </div>
+
         <table>
           <thead>
             <tr>
@@ -118,12 +125,31 @@ import * as XLSX from 'xlsx';
                 </div>
               </td>
             </tr>
-            <tr *ngIf="filteredInvoices.length === 0">
+
+            <!-- Empty State -->
+            <tr *ngIf="!loading && filteredInvoices.length === 0">
               <td colspan="6" class="empty-state">
                 <div class="empty-msg">
                   <i class="ri-file-list-3-line" style="font-size: 3rem; opacity: 0.5;"></i>
                   <p>Không có hóa đơn nào phù hợp với bộ lọc.</p>
                 </div>
+              </td>
+            </tr>
+
+            <!-- Loading More Indicator -->
+            <tr *ngIf="loadingMore">
+              <td colspan="6" class="loading-more-cell">
+                <div class="loading-more">
+                  <div class="spinner-small"></div>
+                  <span>Đang tải thêm...</span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- End of List Indicator -->
+            <tr *ngIf="!hasMore && filteredInvoices.length > 0 && !loading">
+              <td colspan="6" class="end-of-list">
+                <span>Đã hiển thị tất cả {{ filteredInvoices.length }} hóa đơn</span>
               </td>
             </tr>
           </tbody>
@@ -314,6 +340,86 @@ import * as XLSX from 'xlsx';
     
     .table-container {
       overflow-x: auto;
+      overflow-y: auto;
+      max-height: calc(100dvh - 290px);
+      position: relative;
+      min-height: 200px;
+    }
+
+    @media (max-width: 768px) {
+      .table-container {
+        max-height: calc(100dvh - 380px);
+      }
+    }
+
+    .table-container.is-loading {
+      opacity: 0.7;
+    }
+
+    /* Loading Overlay (lần đầu) */
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255,255,255,0.7);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      color: var(--primary);
+      font-weight: 500;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Loading More (cuộn thêm) */
+    .loading-more-cell {
+      padding: 1.5rem !important;
+    }
+
+    .loading-more {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      color: var(--primary);
+      font-weight: 500;
+      font-size: 0.9rem;
+      padding: 0.5rem;
+    }
+
+    .spinner-small {
+      width: 22px;
+      height: 22px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    /* End of list */
+    .end-of-list {
+      text-align: center;
+      padding: 1rem !important;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 500;
     }
 
     .clickable-row {
@@ -436,73 +542,139 @@ import * as XLSX from 'xlsx';
     }
   `]
 })
-export class InvoiceListComponent implements OnInit {
-  invoices: Invoice[] = [];
+export class InvoiceListComponent implements OnInit, OnDestroy, AfterViewInit {
   filteredInvoices: Invoice[] = [];
   searchQuery: string = '';
   activeTab: 'all' | 'paid' | 'debt' = 'all';
-  sortOrder: 'date_asc' | 'date_desc' | 'debt_asc' | 'debt_desc' = 'date_desc';
+  sortOrder: string = 'date_desc';
   selectedInvoice: Invoice | null = null;
   editingInvoice: Invoice | null = null;
   showExportModal: boolean = false;
   showPasswordModal: boolean = false;
   selectedDeleteInvoice: Invoice | null = null;
 
+  // Pagination state
+  currentPage = 1;
+  perPage = 15;
+  totalAll = 0;
+  totalPaid = 0;
+  totalDebt = 0;
+  hasMore = true;
+  loading = false;
+  loadingMore = false;
+
+  // Scroll threshold (px before bottom to trigger load)
+  private scrollThreshold = 150;
+
+  // Search debounce
+  private searchSubject = new Subject<string>();
+  private searchSubscription?: Subscription;
+  private lastFetchedQuery: string | null = null;
+
+  @ViewChild('tableContainer') tableContainerRef!: ElementRef;
+
   constructor(private dataService: DataService) {}
 
   ngOnInit() {
-    this.dataService.invoices$.subscribe(data => {
-      this.invoices = data;
-      this.onFilterChange();
+    this.fetchInvoices(true);
+
+    // Setup debounce search (2s after stopped typing)
+    this.searchSubscription = this.searchSubject.pipe(
+      debounceTime(2000),
+      distinctUntilChanged()
+    ).subscribe((query) => {
+      if (this.lastFetchedQuery !== query) {
+        this.onEnterSearch();
+      }
     });
   }
 
+  ngAfterViewInit() {
+    // Scroll listener đã được bind trực tiếp trong template qua (scroll)
+  }
+
+  ngOnDestroy() {
+    if (this.searchSubscription) {
+      this.searchSubscription.unsubscribe();
+    }
+  }
+
+  fetchInvoices(reset = false) {
+    if (reset) {
+      this.currentPage = 1;
+      this.filteredInvoices = [];
+      this.hasMore = true;
+      this.loading = true;
+    } else {
+      this.loadingMore = true;
+    }
+
+    this.dataService.getInvoicesPaginated(
+      this.currentPage,
+      this.perPage,
+      this.searchQuery || undefined,
+      this.activeTab,
+      this.sortOrder
+    ).subscribe({
+      next: (res) => {
+        if (reset) {
+          this.filteredInvoices = res.invoices;
+        } else {
+          this.filteredInvoices = [...this.filteredInvoices, ...res.invoices];
+        }
+
+        // Cập nhật tab counts
+        this.totalAll = res.totalAll;
+        this.totalPaid = res.totalPaid;
+        this.totalDebt = res.totalDebt;
+
+        // Kiểm tra còn data không
+        this.hasMore = res.invoices.length >= this.perPage;
+
+        this.loading = false;
+        this.loadingMore = false;
+        this.lastFetchedQuery = this.searchQuery;
+      },
+      error: () => {
+        this.loading = false;
+        this.loadingMore = false;
+      }
+    });
+  }
+
+  onTableScroll(event: Event) {
+    if (this.loadingMore || !this.hasMore || this.loading) return;
+
+    const el = event.target as HTMLElement;
+    const scrollBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+
+    if (scrollBottom < this.scrollThreshold) {
+      this.loadMore();
+    }
+  }
+
+  loadMore() {
+    if (this.loadingMore || !this.hasMore) return;
+    this.currentPage++;
+    this.fetchInvoices(false);
+  }
+
   setTab(tab: 'all' | 'paid' | 'debt') {
+    if (this.activeTab === tab) return;
     this.activeTab = tab;
-    this.onFilterChange();
+    this.fetchInvoices(true);
   }
 
-  getPaidCount() {
-    return this.invoices.filter(i => i.isFullyPaid).length;
+  onSearch() {
+    this.searchSubject.next(this.searchQuery);
   }
 
-  getDebtCount() {
-    return this.invoices.filter(i => !i.isFullyPaid).length;
+  onEnterSearch() {
+    this.fetchInvoices(true);
   }
 
-  onFilterChange() {
-    let result = [...this.invoices];
-    
-    // 1. Phân loại theo TAB
-    if (this.activeTab === 'paid') {
-      result = result.filter(inv => inv.isFullyPaid);
-    } else if (this.activeTab === 'debt') {
-      result = result.filter(inv => !inv.isFullyPaid);
-    }
-
-    // 2. Tìm kiếm
-    if (this.searchQuery) {
-      const q = this.searchQuery.toLowerCase();
-      result = result.filter(inv => 
-        inv.buyerName?.toLowerCase().includes(q) ||
-        inv.buyerPhone?.includes(q) ||
-        inv.productName?.toLowerCase().includes(q) ||
-        inv.products?.some(p => p.name.toLowerCase().includes(q))
-      );
-    }
-    
-    // 3. Sắp xếp
-    if (this.sortOrder === 'date_desc') {
-      result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    } else if (this.sortOrder === 'date_asc') {
-      result.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    } else if (this.sortOrder === 'debt_desc') {
-      result.sort((a, b) => b.debt - a.debt);
-    } else if (this.sortOrder === 'debt_asc') {
-      result.sort((a, b) => a.debt - b.debt);
-    }
-    
-    this.filteredInvoices = result;
+  onSortChange() {
+    this.fetchInvoices(true);
   }
 
   viewInvoiceDetail(invoice: Invoice) {
@@ -516,6 +688,10 @@ export class InvoiceListComponent implements OnInit {
   onEditConfirm(updated: Invoice) {
     this.dataService.updateInvoice(updated).subscribe(() => {
       this.editingInvoice = null;
+      // Cập nhật local thay vì fetch lại toàn bộ
+      this.filteredInvoices = this.filteredInvoices.map(inv =>
+        inv.id.toString() === updated.id.toString() ? { ...inv, ...updated } : inv
+      );
     });
   }
 
@@ -527,6 +703,8 @@ export class InvoiceListComponent implements OnInit {
   onDeleteSuccess() {
     this.showPasswordModal = false;
     this.selectedDeleteInvoice = null;
+    // Fetch lại từ đầu sau khi xóa
+    this.fetchInvoices(true);
   }
 
   exportToExcel() {

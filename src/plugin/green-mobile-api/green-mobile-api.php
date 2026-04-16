@@ -431,32 +431,143 @@ function gm_handle_get_invoices($request)
     $from_date = $request->get_param('from_date');
     $to_date = $request->get_param('to_date');
 
-    $where_clause = "";
+    // Nhận tham số phân trang (Nếu không truyền page → legacy mode trả tất cả)
+    $page = $request->get_param('page');
+    $per_page = $request->get_param('per_page') ?: 15;
+    $search = $request->get_param('search');
+    $tab = $request->get_param('tab'); // 'all', 'paid', 'debt'
+    $sort = $request->get_param('sort') ?: 'date_desc';
+
+    $is_paginated = !empty($page);
+
+    // ===== Build WHERE clause =====
+    $where_conditions = array();
     $sql_params = array();
 
     if (!empty($from_date) && !empty($to_date)) {
         $start = sanitize_text_field($from_date) . ' 00:00:00';
         $end = sanitize_text_field($to_date) . ' 23:59:59';
-        $where_clause = " WHERE i.created_at BETWEEN %s AND %s ";
+        $where_conditions[] = "i.created_at BETWEEN %s AND %s";
         $sql_params[] = $start;
         $sql_params[] = $end;
     }
 
-    // 1. Fetch main invoice data with buyer info
-    $sql = "SELECT i.*, u.name as buyer_name, u.phone as buyer_phone, u.address as buyer_address 
+    // Lọc theo tab (chỉ khi phân trang)
+    if ($is_paginated && !empty($tab) && $tab !== 'all') {
+        if ($tab === 'paid') {
+            $where_conditions[] = "i.is_fully_paid = 1";
+        } elseif ($tab === 'debt') {
+            $where_conditions[] = "i.is_fully_paid = 0";
+        }
+    }
+
+    // Lọc tìm kiếm (chỉ khi phân trang)
+    if ($is_paginated && !empty($search)) {
+        $search_term = '%' . $wpdb->esc_like($search) . '%';
+        $where_conditions[] = "(u.name LIKE %s OR u.phone LIKE %s OR i.product_name LIKE %s)";
+        $sql_params[] = $search_term;
+        $sql_params[] = $search_term;
+        $sql_params[] = $search_term;
+    }
+
+    $where_clause = '';
+    if (!empty($where_conditions)) {
+        $where_clause = ' WHERE ' . implode(' AND ', $where_conditions);
+    }
+
+    // ===== Build ORDER BY =====
+    $order_clause = 'ORDER BY i.created_at DESC';
+    if ($is_paginated) {
+        switch ($sort) {
+            case 'date_asc':
+                $order_clause = 'ORDER BY i.created_at ASC';
+                break;
+            case 'debt_desc':
+                $order_clause = 'ORDER BY i.debt DESC';
+                break;
+            case 'debt_asc':
+                $order_clause = 'ORDER BY i.debt ASC';
+                break;
+            default:
+                $order_clause = 'ORDER BY i.created_at DESC';
+                break;
+        }
+    }
+
+    // ===== Tab counts (chỉ khi phân trang) =====
+    $total_all = 0;
+    $total_paid = 0;
+    $total_debt = 0;
+
+    if ($is_paginated) {
+        // Build count WHERE (không bao gồm tab filter, giữ date/search filters)
+        $count_conditions = array();
+        $count_params = array();
+
+        if (!empty($from_date) && !empty($to_date)) {
+            $count_conditions[] = "i.created_at BETWEEN %s AND %s";
+            $count_params[] = sanitize_text_field($from_date) . ' 00:00:00';
+            $count_params[] = sanitize_text_field($to_date) . ' 23:59:59';
+        }
+        if (!empty($search)) {
+            $search_term_count = '%' . $wpdb->esc_like($search) . '%';
+            $count_conditions[] = "(u.name LIKE %s OR u.phone LIKE %s OR i.product_name LIKE %s)";
+            $count_params[] = $search_term_count;
+            $count_params[] = $search_term_count;
+            $count_params[] = $search_term_count;
+        }
+
+        $count_where = '';
+        if (!empty($count_conditions)) {
+            $count_where = ' WHERE ' . implode(' AND ', $count_conditions);
+        }
+
+        // Total all
+        $count_sql = "SELECT COUNT(*) FROM $table_inv i LEFT JOIN $table_usr u ON i.buyer_id = u.id $count_where";
+        $total_all = !empty($count_params)
+            ? (int) $wpdb->get_var($wpdb->prepare($count_sql, ...$count_params))
+            : (int) $wpdb->get_var($count_sql);
+
+        // Total paid
+        $paid_where = !empty($count_conditions)
+            ? ' WHERE ' . implode(' AND ', $count_conditions) . ' AND i.is_fully_paid = 1'
+            : ' WHERE i.is_fully_paid = 1';
+        $paid_sql = "SELECT COUNT(*) FROM $table_inv i LEFT JOIN $table_usr u ON i.buyer_id = u.id $paid_where";
+        $total_paid = !empty($count_params)
+            ? (int) $wpdb->get_var($wpdb->prepare($paid_sql, ...$count_params))
+            : (int) $wpdb->get_var($paid_sql);
+
+        $total_debt = $total_all - $total_paid;
+    }
+
+    // ===== Main query =====
+    $base_sql = "SELECT i.*, u.name as buyer_name, u.phone as buyer_phone, u.address as buyer_address 
             FROM $table_inv i 
             LEFT JOIN $table_usr u ON i.buyer_id = u.id 
             $where_clause
-            ORDER BY i.created_at DESC";
+            $order_clause";
 
-    if (!empty($sql_params)) {
-        $sql = $wpdb->prepare($sql, ...$sql_params);
+    if ($is_paginated) {
+        $offset = ((int) $page - 1) * (int) $per_page;
+        $base_sql .= " LIMIT %d OFFSET %d";
+        $sql_params[] = (int) $per_page;
+        $sql_params[] = (int) $offset;
     }
 
-    $results = $wpdb->get_results($sql);
+    if (!empty($sql_params)) {
+        $base_sql = $wpdb->prepare($base_sql, ...$sql_params);
+    }
+
+    $results = $wpdb->get_results($base_sql);
 
     if (empty($results)) {
-        return new WP_REST_Response(array(), 200);
+        $response = new WP_REST_Response(array(), 200);
+        if ($is_paginated) {
+            $response->header('X-WP-Total', $total_all);
+            $response->header('X-WP-TotalPaid', $total_paid);
+            $response->header('X-WP-TotalDebt', $total_debt);
+        }
+        return $response;
     }
 
     // 2. Fetch all items for these invoices in one go to be efficient
@@ -533,7 +644,19 @@ function gm_handle_get_invoices($request)
         );
     }
 
-    return new WP_REST_Response($results, 200);
+    $response = new WP_REST_Response($results, 200);
+    if ($is_paginated) {
+        $current_tab_total = $total_all;
+        if ($tab === 'paid') $current_tab_total = $total_paid;
+        elseif ($tab === 'debt') $current_tab_total = $total_debt;
+
+        $response->header('X-WP-Total', $current_tab_total);
+        $response->header('X-WP-TotalPages', ceil($current_tab_total / $per_page));
+        $response->header('X-WP-TotalPaid', $total_paid);
+        $response->header('X-WP-TotalDebt', $total_debt);
+        $response->header('X-WP-TotalAll', $total_all);
+    }
+    return $response;
 }
 
 function gm_handle_create_invoice($request)
@@ -772,10 +895,50 @@ function gm_handle_update_invoice($request)
     return new WP_REST_Response(array('data' => $params, 'message' => 'Updated'), 200);
 }
 
-function gm_handle_get_customers()
+function gm_handle_get_customers($request)
 {
     global $wpdb;
     $table = $wpdb->prefix . 'gm_users';
+
+    $page = $request->get_param('page');
+    $per_page = $request->get_param('per_page') ?: 15;
+    $search = $request->get_param('search');
+
+    $is_paginated = !empty($page);
+
+    $where_clause = '';
+    $sql_params = array();
+
+    if ($is_paginated && !empty($search)) {
+        $search_term = '%' . $wpdb->esc_like($search) . '%';
+        $where_clause = ' WHERE (name LIKE %s OR phone LIKE %s OR address LIKE %s)';
+        $sql_params[] = $search_term;
+        $sql_params[] = $search_term;
+        $sql_params[] = $search_term;
+    }
+
+    if ($is_paginated) {
+        // Count total
+        $count_sql = "SELECT COUNT(*) FROM $table $where_clause";
+        $total = !empty($sql_params)
+            ? (int) $wpdb->get_var($wpdb->prepare($count_sql, ...$sql_params))
+            : (int) $wpdb->get_var($count_sql);
+
+        // Paginated query
+        $offset = ((int) $page - 1) * (int) $per_page;
+        $sql = "SELECT id as p_id, name, phone, address FROM $table $where_clause ORDER BY name ASC LIMIT %d OFFSET %d";
+        $sql_params[] = (int) $per_page;
+        $sql_params[] = (int) $offset;
+
+        $results = $wpdb->get_results($wpdb->prepare($sql, ...$sql_params));
+
+        $response = new WP_REST_Response($results, 200);
+        $response->header('X-WP-Total', $total);
+        $response->header('X-WP-TotalPages', ceil($total / $per_page));
+        return $response;
+    }
+
+    // Legacy mode: trả tất cả (cho autocomplete, invoice form, debt list)
     $results = $wpdb->get_results("SELECT id as p_id, name, phone, address FROM $table ORDER BY name ASC");
     return new WP_REST_Response($results, 200);
 }
@@ -1223,3 +1386,9 @@ add_action('init', function () {
         exit();
     }
 });
+
+// Override WordPress core's Expose-Headers (chạy sau rest_send_cors_headers ở priority 10)
+add_filter('rest_pre_serve_request', function ($served) {
+    header("Access-Control-Expose-Headers: X-WP-Total, X-WP-TotalPages, X-WP-TotalAll, X-WP-TotalPaid, X-WP-TotalDebt, Link");
+    return $served;
+}, 15);

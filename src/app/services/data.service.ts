@@ -68,7 +68,8 @@ export class DataService {
       this.invoicesSubject.next(invoices);
     });
 
-    // Tải khách hàng từ API và cập nhật Cache mỗi lần vào site
+    // Khách hàng: Không load ở đây nữa, chuyển sang lazy-load phân trang khi vào trang Khách hàng
+    // Vẫn giữ load-all cho autocomplete (invoice form, debt list)
     this.http.get<Customer[]>(`${this.apiUrl}/customers`).subscribe((customers: Customer[]) => {
       this.customersSubject.next(customers);
     });
@@ -191,6 +192,48 @@ export class DataService {
   // Invoice Methods
   getInvoices(): Invoice[] {
     return this.invoicesSubject.value;
+  }
+
+  getInvoicesPaginated(
+    page: number,
+    perPage: number,
+    search?: string,
+    tab?: 'all' | 'paid' | 'debt',
+    sort?: string
+  ): Observable<{
+    invoices: Invoice[],
+    total: number,
+    totalAll: number,
+    totalPaid: number,
+    totalDebt: number
+  }> {
+    let params: any = { page, per_page: perPage };
+    if (search) params.search = search;
+    if (tab) params.tab = tab;
+    if (sort) params.sort = sort;
+
+    return this.http.get<Invoice[]>(`${this.apiUrl}/invoices`, {
+      params,
+      observe: 'response'
+    }).pipe(
+      map(response => {
+        const total = parseInt(response.headers.get('X-WP-Total') || '0', 10);
+        const totalAll = parseInt(response.headers.get('X-WP-TotalAll') || '0', 10);
+        const totalPaid = parseInt(response.headers.get('X-WP-TotalPaid') || '0', 10);
+        const totalDebt = parseInt(response.headers.get('X-WP-TotalDebt') || '0', 10);
+        return {
+          invoices: response.body || [],
+          total,
+          totalAll: totalAll || total,
+          totalPaid,
+          totalDebt
+        };
+      }),
+      catchError(err => {
+        this.toast.error('Lỗi khi tải danh sách hóa đơn');
+        return throwError(() => err);
+      })
+    );
   }
 
   addInvoice(invoice: Invoice): Observable<any> {
@@ -323,6 +366,32 @@ export class DataService {
   // Get unique customers from sync cache (always refreshed at startup)
   getExistingCustomers(): Observable<Customer[]> {
     return this.customers$;
+  }
+
+  getCustomersPaginated(
+    page: number,
+    perPage: number,
+    search?: string
+  ): Observable<{ customers: Customer[], total: number }> {
+    let params: any = { page, per_page: perPage };
+    if (search) params.search = search;
+
+    return this.http.get<Customer[]>(`${this.apiUrl}/customers`, {
+      params,
+      observe: 'response'
+    }).pipe(
+      map(response => {
+        const total = parseInt(response.headers.get('X-WP-Total') || '0', 10);
+        return {
+          customers: response.body || [],
+          total
+        };
+      }),
+      catchError(err => {
+        this.toast.error('Lỗi khi tải danh sách khách hàng');
+        return throwError(() => err);
+      })
+    );
   }
 
   updateCustomer(customer: Customer): Observable<any> {

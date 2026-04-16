@@ -1,8 +1,75 @@
 import SwiftUI
 import Charts
 
+enum DashboardFilter: String, CaseIterable {
+    case all = "Toàn bộ"
+    case sevenDays = "7 ngày"
+    case thirtyDays = "30 ngày"
+    case custom = "Tùy chọn"
+}
+
 struct DashboardView: View {
     @EnvironmentObject var dataManager: DataManager
+    @State private var selectedFilter: DashboardFilter = .all
+    @State private var selectedMonth: Int = Calendar.current.component(.month, from: Date())
+    @State private var customStartDate = Date().addingTimeInterval(-86400 * 30)
+    @State private var customEndDate = Date()
+    @State private var showCustomDatePicker = false
+    
+    // Helper to format Date to yyyy-MM-dd
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+    
+    private func updateData() {
+        Task {
+            let calendar = Calendar.current
+            let today = Date()
+            
+            var from: String? = nil
+            var to: String? = nil
+            
+            switch selectedFilter {
+            case .all:
+                break
+            case .sevenDays:
+                if let date = calendar.date(byAdding: .day, value: -7, to: today) {
+                    from = formatDate(date)
+                    to = formatDate(today)
+                }
+            case .thirtyDays:
+                if let date = calendar.date(byAdding: .day, value: -30, to: today) {
+                    from = formatDate(date)
+                    to = formatDate(today)
+                }
+            case .custom:
+                from = formatDate(customStartDate)
+                to = formatDate(customEndDate)
+            }
+            
+            await dataManager.fetchDashboardStats(fromDate: from, toDate: to)
+        }
+    }
+    
+    private func updateMonthData(_ month: Int) {
+        Task {
+            let calendar = Calendar.current
+            let year = calendar.component(.year, from: Date())
+            var components = DateComponents(year: year, month: month, day: 1)
+            
+            if let startOfMonth = calendar.date(from: components),
+               let range = calendar.range(of: .day, in: .month, for: startOfMonth) {
+                let endOfMonth = calendar.date(byAdding: .day, value: range.count - 1, to: startOfMonth)!
+                
+                await dataManager.fetchDashboardStats(
+                    fromDate: formatDate(startOfMonth),
+                    toDate: formatDate(endOfMonth)
+                )
+            }
+        }
+    }
     
     var body: some View {
         NavigationView {
@@ -11,6 +78,17 @@ struct DashboardView: View {
                 
                 ScrollView {
                     VStack(spacing: 20) {
+                        // Time Filter Section
+                        TimeFilterSection(
+                            selectedFilter: $selectedFilter,
+                            selectedMonth: $selectedMonth,
+                            customStartDate: $customStartDate,
+                            customEndDate: $customEndDate,
+                            showCustomDatePicker: $showCustomDatePicker,
+                            onFilterChange: updateData,
+                            onMonthChange: updateMonthData
+                        )
+                        
                         // 1. Primary Metrics (KPI Grid)
                         KPISection()
                         
@@ -23,24 +101,137 @@ struct DashboardView: View {
                     .padding()
                 }
                 .refreshable {
-                    await dataManager.fetchInitialData()
+                    if selectedFilter == .custom {
+                        updateData()
+                    } else if selectedFilter == .all && selectedMonth != 0 {
+                        // If a month was selected, we might want to refresh that, 
+                        // but usually pull-to-refresh resets to initial data.
+                        // Let's keep current context.
+                        updateData()
+                    } else {
+                        await dataManager.fetchInitialData()
+                    }
                 }
                 
                 // Loading Overlay
-                if dataManager.isLoading && dataManager.invoices.isEmpty {
-                    VStack {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                        Text("Đang tải dữ liệu...")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding(.top, 10)
+                if dataManager.isLoading {
+                    ZStack {
+                        Color.white.opacity(0.6)
+                            .ignoresSafeArea()
+                        
+                        VStack(spacing: 15) {
+                            ProgressView()
+                                .scaleEffect(1.2)
+                                .accentColor(AppTheme.primary)
+                            
+                            Text("Đang cập nhật...")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(25)
+                        .background(Color.white)
+                        .cornerRadius(20)
+                        .shadow(color: Color.black.opacity(0.1), radius: 20, x: 0, y: 10)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.white.opacity(0.8))
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    .zIndex(10)
                 }
             }
+            .animation(.easeInOut, value: dataManager.isLoading)
             .navigationTitle("Thống kê")
+            .onAppear {
+                // Fetch initial data if not already loading
+                if !dataManager.isLoading {
+                    updateData()
+                }
+            }
+            .onChange(of: customStartDate) { _ in if selectedFilter == .custom { updateData() } }
+            .onChange(of: customEndDate) { _ in if selectedFilter == .custom { updateData() } }
+        }
+    }
+}
+
+struct TimeFilterSection: View {
+    @Binding var selectedFilter: DashboardFilter
+    @Binding var selectedMonth: Int
+    @Binding var customStartDate: Date
+    @Binding var customEndDate: Date
+    @Binding var showCustomDatePicker: Bool
+    
+    var onFilterChange: () -> Void
+    var onMonthChange: (Int) -> Void
+    
+    let months = [
+        "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
+        "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"
+    ]
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(DashboardFilter.allCases, id: \.self) { filter in
+                        Button(action: {
+                            selectedFilter = filter
+                            onFilterChange()
+                        }) {
+                            Text(filter.rawValue)
+                                .font(.system(size: 14, weight: .medium))
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(selectedFilter == filter ? AppTheme.primary : Color.white)
+                                .foregroundColor(selectedFilter == filter ? .white : .secondary)
+                                .cornerRadius(20)
+                                .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                        }
+                    }
+                    
+                    Divider().frame(height: 20)
+                    
+                    // Month Picker
+                    Menu {
+                        ForEach(1...12, id: \.self) { month in
+                            Button(months[month-1]) {
+                                selectedMonth = month
+                                selectedFilter = .all // Reset tab
+                                onMonthChange(month)
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text(months[selectedMonth-1])
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 10))
+                        }
+                        .font(.system(size: 14, weight: .medium))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.white)
+                        .foregroundColor(.secondary)
+                        .cornerRadius(20)
+                        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                    }
+                }
+                .padding(.horizontal, 2)
+                .padding(.vertical, 5)
+            }
+            
+            if selectedFilter == .custom {
+                HStack {
+                    DatePicker("", selection: $customStartDate, displayedComponents: .date)
+                        .labelsHidden()
+                        .datePickerStyle(.compact)
+                    
+                    Text("→")
+                        .foregroundColor(.secondary)
+                    
+                    DatePicker("", selection: $customEndDate, displayedComponents: .date)
+                        .labelsHidden()
+                        .datePickerStyle(.compact)
+                }
+                .padding(.top, 5)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
     }
 }

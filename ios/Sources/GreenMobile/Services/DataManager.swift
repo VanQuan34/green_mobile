@@ -13,7 +13,7 @@ struct DashboardStats: Codable {
     var last7DaysRevenue: [Date: Int] = [:]
     
     enum CodingKeys: String, CodingKey {
-        case totalRevenue, totalPaid, totalDebt, soldCount, inventoryCount, totalCapital
+        case totalRevenue, totalPaid, totalDebt, soldCount, inventoryCount, totalCapital, totalProfit
         case expectedTotalRevenue = "totalExpectedRevenue"
     }
 }
@@ -30,6 +30,24 @@ class DataManager: ObservableObject {
     @Published var canLoadMoreProducts: Bool = true
     @Published var dashboardStats = DashboardStats()
     
+    // Invoice pagination state
+    @Published var isFetchingMoreInvoices: Bool = false
+    @Published var canLoadMoreInvoices: Bool = true
+    @Published var isRefreshingInvoices: Bool = false  // Loading overlay khi đổi tab/search (giữ data cũ)
+    @Published var invoicesTotalAll: Int = 0
+    @Published var invoicesTotalPaid: Int = 0
+    @Published var invoicesTotalDebt: Int = 0
+    private var invoicesPage: Int = 1
+    private let invoicesPerPage = 15
+    
+    // Customer pagination state
+    @Published var isFetchingMoreCustomers: Bool = false
+    @Published var canLoadMoreCustomers: Bool = true
+    @Published var isRefreshingCustomers: Bool = false  // Loading overlay khi search (giữ data cũ)
+    @Published var customersTotalCount: Int = 0
+    private var customersPage: Int = 1
+    private let customersPerPage = 15
+    
     private var productsPage: Int = 1
     private let productsPerPage = 15
     private var cancellables = Set<AnyCancellable>()
@@ -39,8 +57,7 @@ class DataManager: ObservableObject {
     func fetchInitialData() async {
         self.isLoading = true
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { await self.fetchInvoices() }
-            group.addTask { await self.fetchCustomers() }
+            group.addTask { await self.fetchInvoicesPaginated(page: 1) }
             group.addTask { await self.fetchProducts(page: 1) }
             group.addTask { await self.fetchDashboardStats() }
         }
@@ -97,6 +114,90 @@ class DataManager: ObservableObject {
         }
     }
     
+    // MARK: - Invoice Pagination
+    
+    func fetchInvoicesPaginated(page: Int = 1, search: String? = nil, tab: String = "all", sort: String = "date_desc") async {
+        if page == 1 {
+            invoicesPage = 1
+            canLoadMoreInvoices = true
+        }
+        
+        guard canLoadMoreInvoices else { return }
+        
+        if page > 1 {
+            self.isFetchingMoreInvoices = true
+        } else if invoices.isEmpty {
+            self.isLoading = true
+        } else {
+            // Đã có data cũ → hiển overlay mờ phía trên
+            self.isRefreshingInvoices = true
+        }
+        
+        var urlString = "\(AppConfig.apiUrl)/invoices?page=\(page)&per_page=\(invoicesPerPage)&tab=\(tab)&sort=\(sort)"
+        if let search = search, !search.isEmpty {
+            urlString += "&search=\(search.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
+        }
+        
+        guard let url = URL(string: urlString) else {
+            self.isLoading = false
+            self.isFetchingMoreInvoices = false
+            return
+        }
+        
+        do {
+            var request = URLRequest(url: url)
+            if let token = UserDefaults.standard.string(forKey: "token") {
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            }
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                self.isLoading = false
+                self.isFetchingMoreInvoices = false
+                return
+            }
+            
+            // Parse headers
+            if let totalAll = httpResponse.value(forHTTPHeaderField: "X-WP-TotalAll") {
+                self.invoicesTotalAll = Int(totalAll) ?? 0
+            }
+            if let totalPaid = httpResponse.value(forHTTPHeaderField: "X-WP-TotalPaid") {
+                self.invoicesTotalPaid = Int(totalPaid) ?? 0
+            }
+            if let totalDebt = httpResponse.value(forHTTPHeaderField: "X-WP-TotalDebt") {
+                self.invoicesTotalDebt = Int(totalDebt) ?? 0
+            }
+            
+            let decoded = try JSONDecoder().decode([Invoice].self, from: data)
+            
+            if page == 1 {
+                self.invoices = decoded
+            } else {
+                self.invoices.append(contentsOf: decoded)
+            }
+            
+            self.invoicesPage = page
+            self.canLoadMoreInvoices = decoded.count == self.invoicesPerPage
+            self.isLoading = false
+            self.isFetchingMoreInvoices = false
+            self.isRefreshingInvoices = false
+            self.calculateDashboardStats()
+        } catch {
+            print("DataManager: Invoice fetch error: \(error)")
+            self.isLoading = false
+            self.isFetchingMoreInvoices = false
+            self.isRefreshingInvoices = false
+        }
+    }
+    
+    func fetchNextInvoicesPage(search: String? = nil, tab: String = "all", sort: String = "date_desc") async {
+        guard canLoadMoreInvoices && !isFetchingMoreInvoices else { return }
+        await fetchInvoicesPaginated(page: invoicesPage + 1, search: search, tab: tab, sort: sort)
+    }
+    
+    // MARK: - Customer Pagination
+    
     func fetchCustomers() async {
         guard let url = URL(string: "\(AppConfig.apiUrl)/customers") else { return }
         await performFetch(url: url) { (data: [Customer]) in
@@ -104,8 +205,90 @@ class DataManager: ObservableObject {
         }
     }
     
-    func fetchDashboardStats() async {
-        guard let url = URL(string: "\(AppConfig.apiUrl)/dashboard/stats") else { return }
+    func fetchCustomersPaginated(page: Int = 1, search: String? = nil) async {
+        if page == 1 {
+            customersPage = 1
+            canLoadMoreCustomers = true
+        }
+        
+        guard canLoadMoreCustomers else { return }
+        
+        if page > 1 {
+            self.isFetchingMoreCustomers = true
+        } else if customers.isEmpty {
+            self.isLoading = true
+        } else {
+            self.isRefreshingCustomers = true
+        }
+        
+        var urlString = "\(AppConfig.apiUrl)/customers?page=\(page)&per_page=\(customersPerPage)"
+        if let search = search, !search.isEmpty {
+            urlString += "&search=\(search.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
+        }
+        
+        guard let url = URL(string: urlString) else {
+            self.isLoading = false
+            self.isFetchingMoreCustomers = false
+            return
+        }
+        
+        do {
+            var request = URLRequest(url: url)
+            if let token = UserDefaults.standard.string(forKey: "token") {
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            }
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                self.isLoading = false
+                self.isFetchingMoreCustomers = false
+                return
+            }
+            
+            if let total = httpResponse.value(forHTTPHeaderField: "X-WP-Total") {
+                self.customersTotalCount = Int(total) ?? 0
+            }
+            
+            let decoded = try JSONDecoder().decode([Customer].self, from: data)
+            
+            if page == 1 {
+                self.customers = decoded
+            } else {
+                self.customers.append(contentsOf: decoded)
+            }
+            
+            self.customersPage = page
+            self.canLoadMoreCustomers = decoded.count == self.customersPerPage
+            self.isLoading = false
+            self.isFetchingMoreCustomers = false
+            self.isRefreshingCustomers = false
+        } catch {
+            print("DataManager: Customer fetch error: \(error)")
+            self.isLoading = false
+            self.isFetchingMoreCustomers = false
+            self.isRefreshingCustomers = false
+        }
+    }
+    
+    func fetchNextCustomersPage(search: String? = nil) async {
+        guard canLoadMoreCustomers && !isFetchingMoreCustomers else { return }
+        await fetchCustomersPaginated(page: customersPage + 1, search: search)
+    }
+    
+    func fetchDashboardStats(fromDate: String? = nil, toDate: String? = nil) async {
+        self.isLoading = true // Start loading
+        var urlString = "\(AppConfig.apiUrl)/dashboard/stats"
+        var queryItems: [String] = []
+        
+        if let from = fromDate { queryItems.append("from_date=\(from)") }
+        if let to = toDate { queryItems.append("to_date=\(to)") }
+        
+        if !queryItems.isEmpty {
+            urlString += "?" + queryItems.joined(separator: "&")
+        }
+        
+        guard let url = URL(string: urlString) else { return }
         await performFetch(url: url) { (data: DashboardStats) in
             // Update specific stats from API
             self.dashboardStats.soldCount = data.soldCount
@@ -115,8 +298,10 @@ class DataManager: ObservableObject {
             self.dashboardStats.totalDebt = data.totalDebt
             self.dashboardStats.totalCapital = data.totalCapital
             self.dashboardStats.expectedTotalRevenue = data.expectedTotalRevenue
+            self.dashboardStats.totalProfit = data.totalProfit
             
             self.calculateDashboardStats()
+            self.isLoading = false
         }
     }
     
@@ -180,18 +365,22 @@ class DataManager: ObservableObject {
         }
         
         // 2. Counts and Values - Priority to API Stats if available
-        // Local calculation as fallback or for immediate feedback
-        let unsoldProducts = products.filter { !($0.sale ?? false) }
-        
         // If we have stats from API, we MUST prioritize them because they represent global data
-        // whereas local products array might be paged.
-        if dashboardStats.inventoryCount > 0 || dashboardStats.soldCount > 0 {
+        // whereas local data might be paged or incomplete.
+        if dashboardStats.inventoryCount > 0 || dashboardStats.soldCount > 0 || dashboardStats.totalRevenue > 0 {
             stats.soldCount = dashboardStats.soldCount
             stats.inventoryCount = dashboardStats.inventoryCount
             stats.totalCapital = dashboardStats.totalCapital
             stats.expectedTotalRevenue = dashboardStats.expectedTotalRevenue
+            
+            // CRITICAL: Overwrite local calculations with global API truth for revenue and debt
+            stats.totalRevenue = dashboardStats.totalRevenue
+            stats.totalPaid = dashboardStats.totalPaid
+            stats.totalDebt = dashboardStats.totalDebt
+            stats.totalProfit = dashboardStats.totalProfit
         } else {
-            // Fallback calculation from local data
+            // Fallback calculation from local data (only if API hasn't returned anything yet)
+            let unsoldProducts = products.filter { !($0.sale ?? false) }
             stats.soldCount = actualInvoices.reduce(0) { $0 + ($1.products?.count ?? 1) }
             stats.inventoryCount = unsoldProducts.count
             

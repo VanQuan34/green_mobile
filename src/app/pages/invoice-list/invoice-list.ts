@@ -61,10 +61,10 @@ import { Subject, debounceTime, distinctUntilChanged, Subscription } from 'rxjs'
       </div>
 
       <div class="table-container glass-card" #tableContainer (scroll)="onTableScroll($event)" [class.is-loading]="loading">
-        <!-- Loading overlay cho lần đầu -->
+        <!-- Loading overlay: lần đầu hoặc khi đổi tab/search -->
         <div class="loading-overlay" *ngIf="loading">
           <div class="spinner"></div>
-          <span>Đang tải dữ liệu...</span>
+          <span>{{ filteredInvoices.length > 0 ? 'Đang cập nhật...' : 'Đang tải dữ liệu...' }}</span>
         </div>
 
         <table>
@@ -602,9 +602,9 @@ export class InvoiceListComponent implements OnInit, OnDestroy, AfterViewInit {
   fetchInvoices(reset = false) {
     if (reset) {
       this.currentPage = 1;
-      this.filteredInvoices = [];
       this.hasMore = true;
       this.loading = true;
+      // KHÔNG xóa filteredInvoices để giữ data cũ hiển thị dưới loading overlay
     } else {
       this.loadingMore = true;
     }

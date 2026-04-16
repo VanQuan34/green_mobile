@@ -5,17 +5,8 @@ struct CustomerListView: View {
     @State private var searchQuery = ""
     @State private var editingCustomer: Customer?
     @State private var isShowingEditSheet = false
-    
-    var filteredCustomers: [Customer] {
-        if searchQuery.isEmpty {
-            return dataManager.customers
-        } else {
-            return dataManager.customers.filter {
-                $0.name.localizedCaseInsensitiveContains(searchQuery) ||
-                $0.phone.contains(searchQuery)
-            }
-        }
-    }
+    @State private var searchTask: Task<Void, Never>?
+    @State private var hasLoadedOnce = false
     
     var body: some View {
         NavigationView {
@@ -32,26 +23,117 @@ struct CustomerListView: View {
                 .cornerRadius(10)
                 .padding(.horizontal)
                 
+                // Total count badge
+                HStack {
+                    Spacer()
+                    Text("Tổng cộng: \(dataManager.customersTotalCount) khách hàng")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal)
+                        .padding(.vertical, 4)
+                }
+                
                 if dataManager.isLoading && dataManager.customers.isEmpty {
                     Spacer()
-                    ProgressView("Đang tải dữ liệu...")
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                        Text("Đang tải dữ liệu...")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                     Spacer()
                 } else {
                     List {
-                        ForEach(filteredCustomers) { customer in
+                        ForEach(dataManager.customers) { customer in
                             CustomerRow(customer: customer) {
                                 editingCustomer = customer
                                 isShowingEditSheet = true
                             }
+                            .onAppear {
+                                // Infinite scroll: load more when last item appears
+                                if customer.id == dataManager.customers.last?.id {
+                                    Task {
+                                        await dataManager.fetchNextCustomersPage(
+                                            search: searchQuery.isEmpty ? nil : searchQuery
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Loading more indicator
+                        if dataManager.isFetchingMoreCustomers {
+                            HStack {
+                                Spacer()
+                                ProgressView("Đang tải thêm...")
+                                    .font(.caption)
+                                Spacer()
+                            }
+                            .listRowSeparator(.hidden)
+                            .padding(.vertical, 8)
+                        }
+                        
+                        // End of list
+                        if !dataManager.canLoadMoreCustomers && !dataManager.customers.isEmpty {
+                            HStack {
+                                Spacer()
+                                Text("Đã hiển thị tất cả \(dataManager.customers.count) khách hàng")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                            }
+                            .listRowSeparator(.hidden)
+                            .padding(.vertical, 4)
                         }
                     }
                     .listStyle(InsetGroupedListStyle())
+                    .overlay {
+                        if dataManager.isRefreshingCustomers {
+                            ZStack {
+                                Color(.systemBackground).opacity(0.6)
+                                VStack(spacing: 10) {
+                                    ProgressView()
+                                        .scaleEffect(1.1)
+                                    Text("Đang cập nhật...")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding()
+                                .background(.ultraThinMaterial)
+                                .cornerRadius(12)
+                            }
+                        }
+                    }
                     .refreshable {
-                        await dataManager.fetchCustomers()
+                        await dataManager.fetchCustomersPaginated(
+                            page: 1,
+                            search: searchQuery.isEmpty ? nil : searchQuery
+                        )
                     }
                 }
             }
             .navigationTitle("Khách hàng")
+            .task {
+                // Lazy load: chỉ fetch khi lần đầu vào tab
+                if !hasLoadedOnce {
+                    hasLoadedOnce = true
+                    await dataManager.fetchCustomersPaginated(page: 1)
+                }
+            }
+            .onChange(of: searchQuery) { newValue in
+                // Debounce search
+                searchTask?.cancel()
+                searchTask = Task {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    if !Task.isCancelled {
+                        await dataManager.fetchCustomersPaginated(
+                            page: 1,
+                            search: newValue.isEmpty ? nil : newValue
+                        )
+                    }
+                }
+            }
             .sheet(item: $editingCustomer) { customer in
                 CustomerEditView(customer: customer)
             }

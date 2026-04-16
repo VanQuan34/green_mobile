@@ -5,36 +5,28 @@ struct InvoiceListView: View {
     @State private var isShowingCreateInvoice = false
     @State private var searchText = ""
     @State private var selectedFilter: InvoiceFilter = .all
+    @State private var searchTask: Task<Void, Never>?
     
     enum InvoiceFilter: String, CaseIterable {
         case all = "Tất cả"
         case paid = "Đã trả hết"
         case debt = "Còn nợ"
-    }
-    
-    private var counts: [InvoiceFilter: Int] {
-        var counts: [InvoiceFilter: Int] = [:]
-        counts[.all] = dataManager.invoices.count
-        counts[.paid] = dataManager.invoices.filter { $0.isFullyPaid == true }.count
-        counts[.debt] = dataManager.invoices.filter { $0.isFullyPaid != true }.count
-        return counts
-    }
-    
-    var filteredInvoices: [Invoice] {
-        var result = dataManager.invoices
-        if selectedFilter == .paid {
-            result = result.filter { $0.isFullyPaid == true }
-        } else if selectedFilter == .debt {
-            result = result.filter { $0.isFullyPaid != true }
-        }
         
-        if !searchText.isEmpty {
-            result = result.filter {
-                $0.buyerName.localizedCaseInsensitiveContains(searchText) ||
-                $0.buyerPhone.contains(searchText)
+        var tabParam: String {
+            switch self {
+            case .all: return "all"
+            case .paid: return "paid"
+            case .debt: return "debt"
             }
         }
-        return result
+    }
+    
+    private func countForFilter(_ filter: InvoiceFilter) -> Int {
+        switch filter {
+        case .all: return dataManager.invoicesTotalAll
+        case .paid: return dataManager.invoicesTotalPaid
+        case .debt: return dataManager.invoicesTotalDebt
+        }
     }
     
     var body: some View {
@@ -42,87 +34,112 @@ struct InvoiceListView: View {
             VStack(spacing: 0) {
                 Picker("Lọc hóa đơn", selection: $selectedFilter) {
                     ForEach(InvoiceFilter.allCases, id: \.self) { filter in
-                        Text("\(filter.rawValue) (\(counts[filter] ?? 0))")
+                        Text("\(filter.rawValue) (\(countForFilter(filter)))")
                             .tag(filter)
                     }
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .padding()
                 .background(Color(UIColor.systemGroupedBackground))
+                .onChange(of: selectedFilter) { _ in
+                    Task {
+                        await dataManager.fetchInvoicesPaginated(
+                            page: 1,
+                            search: searchText.isEmpty ? nil : searchText,
+                            tab: selectedFilter.tabParam
+                        )
+                    }
+                }
                 
-                List(filteredInvoices) { invoice in
-                    NavigationLink(destination: InvoiceDetailView(invoice: invoice)) {
-                        VStack(alignment: .leading, spacing: 5) {
-                            HStack {
-                                Text(invoice.buyerName)
-                                    .font(.headline)
-                                Spacer()
-                                Text(invoice.totalAmount.formatVND())
-                                    .fontWeight(.bold)
-                                    .foregroundColor(AppTheme.primary)
-                            }
-                            
-                            HStack {
-                                Label(invoice.buyerPhone, systemImage: "phone")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                
-                                if invoice.isFullyPaid == true {
-                                    Text("Đã thanh toán")
-                                        .font(.caption2)
-                                        .fontWeight(.bold)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(AppTheme.success.opacity(0.1))
-                                        .foregroundColor(AppTheme.success)
-                                        .cornerRadius(6)
-                                } else {
-                                    let debtAmount = invoice.debt ?? 0
-                                    Text("Còn nợ: \(debtAmount.formatVND())")
-                                        .font(.caption2)
-                                        .fontWeight(.bold)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(AppTheme.danger.opacity(0.1))
-                                        .foregroundColor(AppTheme.danger)
-                                        .cornerRadius(6)
+                List {
+                    ForEach(dataManager.invoices) { invoice in
+                        NavigationLink(destination: InvoiceDetailView(invoice: invoice)) {
+                            InvoiceRowContent(invoice: invoice)
+                        }
+                        .padding(.vertical, 4)
+                        .onAppear {
+                            // Infinite scroll: khi item cuối cùng xuất hiện → load thêm
+                            if invoice.id == dataManager.invoices.last?.id {
+                                Task {
+                                    await dataManager.fetchNextInvoicesPage(
+                                        search: searchText.isEmpty ? nil : searchText,
+                                        tab: selectedFilter.tabParam
+                                    )
                                 }
                             }
-                            
-                            if let products = invoice.products, !products.isEmpty {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    ForEach(Array(products.prefix(2).enumerated()), id: \.offset) { index, product in
-                                        Text("• \(product.name)")
-                                            .font(.system(size: 11))
-                                            .foregroundColor(.secondary)
-                                    }
-                                    if products.count > 2 {
-                                        Text("... và \(products.count - 2) sản phẩm khác")
-                                            .font(.system(size: 10))
-                                            .fontWeight(.bold)
-                                            .foregroundColor(AppTheme.primary)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(AppTheme.primary.opacity(0.1))
-                                            .cornerRadius(4)
-                                            .padding(.leading, 8)
-                                    }
-                                }
-                                .padding(.top, 2)
-                            }
-                            
-                            Text(invoice.formattedDate)
-                                .font(.system(size: 10))
-                                .foregroundColor(.gray)
                         }
                     }
-                    .padding(.vertical, 4)
+                    
+                    // Loading more indicator
+                    if dataManager.isFetchingMoreInvoices {
+                        HStack {
+                            Spacer()
+                            ProgressView("Đang tải thêm...")
+                                .font(.caption)
+                            Spacer()
+                        }
+                        .listRowSeparator(.hidden)
+                        .padding(.vertical, 8)
+                    }
+                    
+                    // End of list
+                    if !dataManager.canLoadMoreInvoices && !dataManager.invoices.isEmpty {
+                        HStack {
+                            Spacer()
+                            Text("Đã hiển thị tất cả \(dataManager.invoices.count) hóa đơn")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                        .listRowSeparator(.hidden)
+                        .padding(.vertical, 4)
+                    }
                 }
                 .listStyle(PlainListStyle())
+                .overlay {
+                    if dataManager.isLoading && dataManager.invoices.isEmpty {
+                        // Lần đầu load - chưa có data
+                        VStack(spacing: 12) {
+                            ProgressView()
+                                .scaleEffect(1.2)
+                            Text("Đang tải dữ liệu...")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                    } else if dataManager.isRefreshingInvoices {
+                        // Đổi tab/search - giữ data cũ mờ phía dưới
+                        ZStack {
+                            Color(.systemBackground).opacity(0.6)
+                            VStack(spacing: 10) {
+                                ProgressView()
+                                    .scaleEffect(1.1)
+                                Text("Đang cập nhật...")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding()
+                            .background(.ultraThinMaterial)
+                            .cornerRadius(12)
+                        }
+                    }
+                }
             }
             .navigationTitle("Hóa đơn")
             .searchable(text: $searchText, prompt: "Tìm tên hoặc SĐT khách hàng")
+            .onChange(of: searchText) { newValue in
+                // Debounce search: 1s delay
+                searchTask?.cancel()
+                searchTask = Task {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    if !Task.isCancelled {
+                        await dataManager.fetchInvoicesPaginated(
+                            page: 1,
+                            search: newValue.isEmpty ? nil : newValue,
+                            tab: selectedFilter.tabParam
+                        )
+                    }
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { isShowingCreateInvoice = true }) {
@@ -131,11 +148,87 @@ struct InvoiceListView: View {
                 }
             }
             .refreshable {
-                await dataManager.fetchInvoices()
+                await dataManager.fetchInvoicesPaginated(
+                    page: 1,
+                    search: searchText.isEmpty ? nil : searchText,
+                    tab: selectedFilter.tabParam
+                )
             }
             .sheet(isPresented: $isShowingCreateInvoice) {
                 InvoiceFormView(products: [])
             }
+        }
+    }
+}
+
+// Extracted row content for cleaner code
+private struct InvoiceRowContent: View {
+    let invoice: Invoice
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(invoice.buyerName)
+                    .font(.headline)
+                Spacer()
+                Text(invoice.totalAmount.formatVND())
+                    .fontWeight(.bold)
+                    .foregroundColor(AppTheme.primary)
+            }
+            
+            HStack {
+                Label(invoice.buyerPhone, systemImage: "phone")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                
+                if invoice.isFullyPaid == true {
+                    Text("Đã thanh toán")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(AppTheme.success.opacity(0.1))
+                        .foregroundColor(AppTheme.success)
+                        .cornerRadius(6)
+                } else {
+                    let debtAmount = invoice.debt ?? 0
+                    Text("Còn nợ: \(debtAmount.formatVND())")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(AppTheme.danger.opacity(0.1))
+                        .foregroundColor(AppTheme.danger)
+                        .cornerRadius(6)
+                }
+            }
+            
+            if let products = invoice.products, !products.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(Array(products.prefix(2).enumerated()), id: \.offset) { index, product in
+                        Text("• \(product.name)")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                    if products.count > 2 {
+                        Text("... và \(products.count - 2) sản phẩm khác")
+                            .font(.system(size: 10))
+                            .fontWeight(.bold)
+                            .foregroundColor(AppTheme.primary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(AppTheme.primary.opacity(0.1))
+                            .cornerRadius(4)
+                            .padding(.leading, 8)
+                    }
+                }
+                .padding(.top, 2)
+            }
+            
+            Text(invoice.formattedDate)
+                .font(.system(size: 10))
+                .foregroundColor(.gray)
         }
     }
 }
@@ -500,13 +593,52 @@ struct DebtRowView: View {
 
 // MARK: - Debt Management Views
 
+enum DebtFilter: String, CaseIterable {
+    case all = "Tất cả"
+    case threeDays = "3d"
+    case sevenDays = "7d"
+    case oneMonth = "1 tháng"
+    case custom = "Tùy chọn"
+}
+
 struct DebtListView: View {
     @EnvironmentObject var dataManager: DataManager
     @State private var searchText = ""
     @State private var sortOrder: SortOrder = .debtDescending
+    @State private var selectedFilter: DebtFilter = .all
+    @State private var customStartDate = Date().addingTimeInterval(-86400 * 30)
+    @State private var customEndDate = Date()
     
     enum SortOrder {
         case debtDescending, debtAscending, nameAscending
+    }
+    
+    private func isDateInRange(_ date: Date) -> Bool {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let targetDate = calendar.startOfDay(for: date)
+        
+        switch selectedFilter {
+        case .all:
+            return true
+        case .threeDays:
+            if let threeDaysAgo = calendar.date(byAdding: .day, value: -3, to: today) {
+                return targetDate >= threeDaysAgo && targetDate <= today
+            }
+        case .sevenDays:
+            if let sevenDaysAgo = calendar.date(byAdding: .day, value: -7, to: today) {
+                return targetDate >= sevenDaysAgo && targetDate <= today
+            }
+        case .oneMonth:
+            if let oneMonthAgo = calendar.date(byAdding: .month, value: -1, to: today) {
+                return targetDate >= oneMonthAgo && targetDate <= today
+            }
+        case .custom:
+            let start = calendar.startOfDay(for: customStartDate)
+            let end = calendar.startOfDay(for: customEndDate)
+            return targetDate >= start && targetDate <= end
+        }
+        return true
     }
     
     var filteredDebts: [CustomerDebt] {
@@ -514,6 +646,9 @@ struct DebtListView: View {
         var groups: [String: CustomerDebt] = [:]
         
         for invoice in allInvoices {
+            // Apply Date Filter FIRST
+            guard isDateInRange(invoice.dateObject) else { continue }
+            
             let debtVal = invoice.debt ?? 0
             if debtVal > 0 {
                 let key = invoice.buyerPhone.isEmpty ? invoice.buyerName : invoice.buyerPhone
@@ -564,11 +699,19 @@ struct DebtListView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
+                // Time Filter Section
+                DebtFilterSection(
+                    selectedFilter: $selectedFilter,
+                    customStartDate: $customStartDate,
+                    customEndDate: $customEndDate
+                )
+                
                 HStack(spacing: 15) {
                     StatCardView(title: "Khách nợ", value: "\(filteredDebts.count)", subTitle: "Người", color: .orange)
                     StatCardView(title: "Tổng tiền nợ", value: totalDebtAmount.formatVND(), subTitle: "VND", color: AppTheme.danger)
                 }
-                .padding()
+                .padding(.horizontal)
+                .padding(.top, 10)
                 
                 HStack(spacing: 12) {
                     HStack {
@@ -587,7 +730,7 @@ struct DebtListView: View {
                         Image(systemName: "line.3.horizontal.decrease.circle").font(.title3)
                     }
                 }
-                .padding(.horizontal).padding(.bottom, 8)
+                .padding(.horizontal).padding(.vertical, 10)
                 
                 Divider()
                 
@@ -608,6 +751,60 @@ struct DebtListView: View {
             .navigationBarTitleDisplayMode(.inline)
             .refreshable { await dataManager.fetchInvoices() }
         }
+    }
+}
+
+struct DebtFilterSection: View {
+    @Binding var selectedFilter: DebtFilter
+    @Binding var customStartDate: Date
+    @Binding var customEndDate: Date
+    
+    var body: some View {
+        VStack(spacing: 10) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(DebtFilter.allCases, id: \.self) { filter in
+                        Button(action: {
+                            withAnimation {
+                                selectedFilter = filter
+                            }
+                        }) {
+                            Text(filter.rawValue)
+                                .font(.system(size: 13, weight: .medium))
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 6)
+                                .background(selectedFilter == filter ? AppTheme.primary : Color.white)
+                                .foregroundColor(selectedFilter == filter ? .white : .secondary)
+                                .cornerRadius(15)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 15)
+                                        .stroke(selectedFilter == filter ? AppTheme.primary : Color.gray.opacity(0.2), lineWidth: 1)
+                                )
+                        }
+                    }
+                }
+                .padding(.horizontal)
+            }
+            .padding(.top, 10)
+            
+            if selectedFilter == .custom {
+                HStack {
+                    DatePicker("", selection: $customStartDate, displayedComponents: .date)
+                        .labelsHidden()
+                        .datePickerStyle(.compact)
+                    
+                    Text("→")
+                        .foregroundColor(.secondary)
+                    
+                    DatePicker("", selection: $customEndDate, displayedComponents: .date)
+                        .labelsHidden()
+                        .datePickerStyle(.compact)
+                }
+                .padding(.horizontal)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .background(Color(hex: "#F8FAFC"))
     }
 }
 

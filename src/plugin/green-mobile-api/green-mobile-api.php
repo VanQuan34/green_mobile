@@ -760,6 +760,19 @@ function gm_handle_create_invoice($request)
             )
         );
 
+        // 7. Gửi thông báo Telegram
+        $tg_message = "Khách hàng: $buyer_name\n";
+        $tg_message .= "Tổng tiền: $total_str\n";
+        $tg_message .= "Đã thanh toán: " . number_format($params['amountPaid'] ?? 0, 0, ',', '.') . " VNĐ\n";
+        $tg_message .= "Còn nợ: " . number_format($params['debt'] ?? 0, 0, ',', '.') . " VNĐ\n";
+        $tg_message .= "\n📦 Chi tiết sản phẩm:\n";
+        foreach ($products as $p) {
+            $tg_message .= "- " . ($p['name'] ?? '') . " (" . number_format($p['sellingPrice'] ?? 0, 0, ',', '.') . " VNĐ)\n";
+        }
+
+        $create_time = date('H:i:s d/m/Y', time() + 7 * 3600);
+        gm_send_telegram_notification("ĐƠN HÀNG MỚI ($create_time)", $tg_message);
+
         $params['id'] = $invoice_id;
         return new WP_REST_Response(array('data' => $params, 'message' => 'Invoice created'), 201);
     }
@@ -1375,7 +1388,43 @@ function gm_handle_test_fcm($request)
 }
 
 /**
- * 10. CORS SUPPORT
+ * 10. TELEGRAM NOTIFICATION HELPERS
+ */
+function gm_send_telegram_notification($title, $message)
+{
+    $bot_token = gm_get_setting('telegram_bot_token');
+    $chat_ids = gm_get_setting('telegram_chat_ids');
+
+    if (empty($bot_token) || empty($chat_ids)) {
+        return false;
+    }
+
+    $ids = array_map('trim', explode(',', $chat_ids));
+    $full_message = "🔔 *" . $title . "*\n\n" . $message;
+
+    foreach ($ids as $chat_id) {
+        if (empty($chat_id)) continue;
+
+        $url = "https://api.telegram.org/bot{$bot_token}/sendMessage";
+        wp_remote_post($url, array(
+            'method'    => 'POST',
+            'timeout'   => 1,
+            'blocking'  => false, // Bất đồng bộ
+            'headers'   => array('Content-Type' => 'application/json'),
+            'body'      => json_encode(array(
+                'chat_id'    => $chat_id,
+                'text'       => $full_message,
+                'parse_mode' => 'Markdown'
+            )),
+            'sslverify' => false
+        ));
+    }
+
+    return true;
+}
+
+/**
+ * 11. CORS SUPPORT
  */
 add_action('init', function () {
     header("Access-Control-Allow-Origin: *");

@@ -235,6 +235,63 @@ import { MediaStoreComponent } from '../../components/media-store/media-store.co
           </div>
         </div>
 
+        <!-- Telegram Bot Section [NEW] -->
+        <div class="settings-card glass-card">
+          <div class="card-header">
+            <span class="icon">🤖</span>
+            <div class="header-text">
+              <h3>Cấu hình Telegram Bot</h3>
+              <p>Gửi thông báo đơn hàng mới qua Telegram.</p>
+            </div>
+          </div>
+          
+          <div class="card-body">
+            <div class="form-group mb-4">
+              <label for="tg_token">Bot Token (BotFather)</label>
+              <div class="input-with-icon">
+                <span class="input-icon">🔑</span>
+                <input 
+                  id="tg_token" 
+                  type="text" 
+                  [(ngModel)]="settings.telegram_bot_token" 
+                  placeholder="5983210:AAH_..."
+                >
+              </div>
+              <p class="help-text">Nhận token từ @BotFather trên Telegram.</p>
+            </div>
+
+            <div class="form-group">
+              <label>Chat IDs (ID người dùng/nhóm)</label>
+              <div class="tags-input-wrapper" (click)="tagInput.focus()">
+                <div class="tag-item animate-scale-in" *ngFor="let id of chatIds; let i = index">
+                  <span class="tag-text">{{ id }}</span>
+                  <button class="remove-tag" (click)="removeChatId(i, $event)">×</button>
+                </div>
+                <input 
+                  #tagInput
+                  type="text" 
+                  [(ngModel)]="currentIdInput" 
+                  (keydown.enter)="addChatId($event)"
+                  (keydown.backspace)="handleBackspace($event)"
+                  (keydown.comma)="addChatId($event)"
+                  placeholder="{{ chatIds.length === 0 ? 'Nhập ID và ấn Enter...' : '' }}"
+                >
+              </div>
+              <p class="help-text">Nhập ID và ấn **Enter** để thêm vào danh sách.</p>
+            </div>
+          </div>
+          
+          <div class="card-footer">
+            <button 
+              class="btn btn-primary" 
+              (click)="saveSettings()" 
+              [disabled]="loading"
+            >
+              {{ loading ? 'Đang lưu...' : 'Lưu cấu hình Telegram' }}
+            </button>
+          </div>
+        </div>
+
         <!-- System Info Card -->
         <div class="settings-card glass-card info-card">
           <div class="card-header">
@@ -636,6 +693,73 @@ import { MediaStoreComponent } from '../../components/media-store/media-store.co
       font-weight: 700;
     }
 
+    /* Tags Input Specific Styles */
+    .tags-input-wrapper {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      background: var(--bg-main);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      min-height: 48px;
+      align-items: center;
+      transition: all 0.2s;
+      cursor: text;
+    }
+
+    .tags-input-wrapper:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+
+    .tag-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      padding: 0.25rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .remove-tag {
+      background: none;
+      border: none;
+      color: var(--primary-dark);
+      cursor: pointer;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+    }
+
+    .remove-tag:hover {
+      opacity: 1;
+    }
+
+    .tags-input-wrapper input {
+      flex: 1;
+      min-width: 150px;
+      border: none;
+      padding: 0;
+      height: 32px;
+      background: transparent;
+      outline: none;
+      font-size: 0.9rem;
+    }
+
+    .tags-input-wrapper input::placeholder {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
     .mb-4 { margin-bottom: 1.5rem; }
     .mt-4 { margin-top: 1.5rem; }
   `]
@@ -645,8 +769,15 @@ export class SettingsComponent implements OnInit {
     google_sheet_url: '',
     primary_color: '#10b981',
     logo_type: 'text',
-    logo_value: 'Di Động Xanh'
+    logo_value: 'Di Động Xanh',
+    telegram_bot_token: '',
+    telegram_chat_ids: ''
   };
+  
+  // Tag Logic Properties
+  chatIds: string[] = [];
+  currentIdInput: string = '';
+
   currentUser: any;
   presets: any[] = [];
   loading = false;
@@ -670,6 +801,17 @@ export class SettingsComponent implements OnInit {
       this.settings.google_sheet_url = res.google_sheet_url || '';
       this.settings.logo_type = res.logo_type || 'text';
       this.settings.logo_value = res.logo_value || 'Di Động Xanh';
+      this.settings.telegram_bot_token = res.telegram_bot_token || '';
+      this.settings.telegram_chat_ids = res.telegram_chat_ids || '';
+      
+      // Khởi tạo Chat IDs array từ chuỗi DB
+      if (this.settings.telegram_chat_ids) {
+        this.chatIds = this.settings.telegram_chat_ids.split(',')
+          .map((id: string) => id.trim())
+          .filter((id: string) => id !== '');
+      } else {
+        this.chatIds = [];
+      }
     });
   }
 
@@ -681,11 +823,16 @@ export class SettingsComponent implements OnInit {
     }
 
     this.loading = true;
-    // Lưu tất cả cấu hình lên DB
+    
+    // Ghép mảng chatIds thành chuỗi để lưu vào DB
+    this.settings.telegram_chat_ids = this.chatIds.join(',');
+
     const dbSettings = {
       google_sheet_url: this.settings.google_sheet_url,
       logo_type: this.settings.logo_type,
-      logo_value: this.settings.logo_value
+      logo_value: this.settings.logo_value,
+      telegram_bot_token: this.settings.telegram_bot_token,
+      telegram_chat_ids: this.settings.telegram_chat_ids
     };
     
     this.dataService.updateSettings(dbSettings)
@@ -697,6 +844,30 @@ export class SettingsComponent implements OnInit {
           this.loading = false;
         }
       });
+  }
+
+  // Tags Logic Methods
+  addChatId(event: any) {
+    if (event) event.preventDefault();
+    
+    const id = this.currentIdInput.trim();
+    if (id && !this.chatIds.includes(id)) {
+      this.chatIds.push(id);
+      this.currentIdInput = '';
+    } else if (id) {
+       this.currentIdInput = ''; // Clear if duplicate
+    }
+  }
+
+  removeChatId(index: number, event: MouseEvent) {
+    event.stopPropagation();
+    this.chatIds.splice(index, 1);
+  }
+
+  handleBackspace(event: any) {
+    if (this.currentIdInput === '' && this.chatIds.length > 0) {
+      this.chatIds.pop();
+    }
   }
 
   onColorChange() {

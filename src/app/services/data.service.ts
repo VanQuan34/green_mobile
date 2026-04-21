@@ -342,6 +342,16 @@ export class DataService {
     );
   }
 
+  sendWeeklyReport(): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/telegram/test-report`, {}).pipe(
+      tap(res => this.toast.success(res.message || 'Đã gửi báo cáo tuần')),
+      catchError(err => {
+        this.toast.error(err.error?.message || 'Lỗi khi gửi báo cáo');
+        return throwError(() => err);
+      })
+    );
+  }
+
   private updateCustomerCache(invoice: Invoice) {
     const current = this.customersSubject.value;
     const exists = current.find(c => c.phone === invoice.buyerPhone);

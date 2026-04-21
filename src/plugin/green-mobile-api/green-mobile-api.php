@@ -112,6 +112,20 @@ function gm_create_custom_tables()
             'setting_value' => GM_DEFAULT_GSHEET_URL
         ));
     }
+
+    // Đăng ký lịch gửi báo cáo tuần (Nếu chưa có)
+    if (!wp_next_scheduled('gm_weekly_telegram_report_event')) {
+        // 10:00 AM (UTC+7) = 03:00 AM (UTC)
+        // Lấy timestamp cho Thứ 7 tới lúc 03:00 UTC
+        $next_saturday = strtotime('next Saturday 03:00:00 GMT');
+        wp_schedule_event($next_saturday, 'weekly', 'gm_weekly_telegram_report_event');
+    }
+}
+
+// Xóa lịch khi deactivation (optional)
+register_deactivation_hook(__FILE__, 'gm_deactivate_weekly_report');
+function gm_deactivate_weekly_report() {
+    wp_clear_scheduled_hook('gm_weekly_telegram_report_event');
 }
 
 /**
@@ -272,6 +286,12 @@ function gm_register_rest_routes()
     register_rest_route($namespace, '/test-fcm', array(
         'methods' => 'GET',
         'callback' => 'gm_handle_test_fcm',
+        'permission_callback' => '__return_true'
+    ));
+
+    register_rest_route($namespace, '/telegram/test-report', array(
+        'methods' => 'POST',
+        'callback' => 'gm_handle_test_weekly_report',
         'permission_callback' => '__return_true'
     ));
 }
@@ -1370,6 +1390,94 @@ function gm_send_fcm_notification($title, $body, $data = [])
     ));
 
     return !is_wp_error($response);
+}
+
+/**
+ * 11. WEEKLY REPORT HELPERS
+ */
+add_action('gm_weekly_telegram_report_event', 'gm_send_weekly_telegram_report');
+
+function gm_send_weekly_telegram_report()
+{
+    global $wpdb;
+    $table_invoices = $wpdb->prefix . 'gm_invoices';
+    $table_products = $wpdb->prefix . 'gm_products';
+    $table_items = $wpdb->prefix . 'gm_invoice_items';
+
+    // Khoảng thời gian: 1 tuần (7 ngày trước đến hiện tại)
+    // Dùng timezone +7
+    $end_timestamp = time() + 7 * 3600;
+    $start_timestamp = $end_timestamp - 7 * 24 * 3600;
+    
+    $end_date = date('Y-m-d H:i:s', $end_timestamp);
+    $start_date = date('Y-m-d H:i:s', $start_timestamp);
+
+    // 1. Truy vấn các chỉ số tài chính
+    $finance_sql = $wpdb->prepare(
+        "SELECT SUM(amount_paid + debt) as revenue, SUM(amount_paid) as paid, SUM(debt) as debt 
+         FROM $table_invoices 
+         WHERE created_at BETWEEN %s AND %s",
+        $start_date, $end_date
+    );
+    $finance = $wpdb->get_row($finance_sql);
+
+    // 2. Truy vấn số máy đã bán
+    $sold_count = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(it.id) 
+         FROM $table_items it 
+         JOIN $table_invoices i ON it.invoice_id = i.id 
+         WHERE i.created_at BETWEEN %s AND %s",
+        $start_date, $end_date
+    )) ?: 0;
+
+    // 3. Truy vấn số máy đã nhập
+    $imported_count = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) 
+         FROM $table_products 
+         WHERE created_at BETWEEN %s AND %s",
+        $start_date, $end_date
+    )) ?: 0;
+
+    // 4. Tính lợi nhuận
+    $profit_sql = $wpdb->prepare(
+        "SELECT SUM(it.price - p.original_price) 
+         FROM $table_items it 
+         JOIN $table_invoices i ON it.invoice_id = i.id 
+         JOIN $table_products p ON it.product_id = p.id 
+         WHERE i.created_at BETWEEN %s AND %s",
+        $start_date, $end_date
+    );
+    $profit = $wpdb->get_var($profit_sql) ?: 0;
+
+    // Định dạng số tiền
+    $fmt_rev = number_format($finance->revenue ?? 0, 0, ',', '.') . ' VNĐ';
+    $fmt_paid = number_format($finance->paid ?? 0, 0, ',', '.') . ' VNĐ';
+    $fmt_debt = number_format($finance->debt ?? 0, 0, ',', '.') . ' VNĐ';
+    $fmt_profit = number_format($profit, 0, ',', '.') . ' VNĐ';
+
+    $template = "📊 *BÁO CÁO TỔNG KẾT TUẦN*\n";
+    $template .= "📅 Từ: " . date('d/m', $start_timestamp) . " đến " . date('d/m/Y', $end_timestamp) . "\n";
+    $template .= "----------------------------------\n";
+    $template .= "💰 *Doanh thu:* $fmt_rev\n";
+    $template .= "💵 *Thực thu:* $fmt_paid\n";
+    $template .= "📉 *Tổng nợ:* $fmt_debt\n";
+    $template .= "💎 *Lợi nhuận:* $fmt_profit\n";
+    $template .= "----------------------------------\n";
+    $template .= "📈 *Số máy đã bán:* $sold_count máy\n";
+    $template .= "📥 *Số máy đã nhập:* $imported_count máy\n\n";
+    $template .= "🚀 _Hệ thống Di Động Xanh_";
+
+    return gm_send_telegram_notification("BÁO CÁO TUẦN", $template);
+}
+
+function gm_handle_test_weekly_report($request)
+{
+    $success = gm_send_weekly_telegram_report();
+    if ($success) {
+        return new WP_REST_Response(['message' => 'Đã gửi báo cáo tuần thành công!'], 200);
+    } else {
+        return new WP_REST_Response(['message' => 'Gửi báo cáo thất bại. Vui lòng kiểm tra lại cấu hình Bot.'], 500);
+    }
 }
 
 function gm_handle_test_fcm($request)

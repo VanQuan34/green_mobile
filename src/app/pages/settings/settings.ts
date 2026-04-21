@@ -5,6 +5,7 @@ import { DataService } from '../../services/data.service';
 import { AuthService } from '../../services/auth.service';
 import { ThemeService } from '../../services/theme.service';
 import { MediaStoreComponent } from '../../components/media-store/media-store.component';
+import { finalize } from 'rxjs';
 
 @Component({
   selector: 'app-settings',
@@ -281,7 +282,15 @@ import { MediaStoreComponent } from '../../components/media-store/media-store.co
             </div>
           </div>
           
-          <div class="card-footer">
+          <div class="card-footer telegram-footer">
+            <button 
+              class="btn btn-outline btn-sm" 
+              (click)="sendTestReport()" 
+              [disabled]="loadingReport"
+            >
+              <span class="icon">📊</span>
+              {{ loadingReport ? 'Đang gửi...' : 'Gửi thử báo cáo tuần' }}
+            </button>
             <button 
               class="btn btn-primary" 
               (click)="saveSettings()" 
@@ -760,6 +769,21 @@ import { MediaStoreComponent } from '../../components/media-store/media-store.co
       font-size: 0.85rem;
     }
 
+    .telegram-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .btn-outline.btn-sm {
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
     .mb-4 { margin-bottom: 1.5rem; }
     .mt-4 { margin-top: 1.5rem; }
   `]
@@ -781,6 +805,7 @@ export class SettingsComponent implements OnInit {
   currentUser: any;
   presets: any[] = [];
   loading = false;
+  loadingReport = false;
   showLogoPicker = false;
 
   constructor(
@@ -844,6 +869,13 @@ export class SettingsComponent implements OnInit {
           this.loading = false;
         }
       });
+  }
+
+  sendTestReport() {
+    this.loadingReport = true;
+    this.dataService.sendWeeklyReport()
+      .pipe(finalize(() => this.loadingReport = false))
+      .subscribe();
   }
 
   // Tags Logic Methods

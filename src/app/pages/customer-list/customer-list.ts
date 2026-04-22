@@ -5,11 +5,14 @@ import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { Customer } from '../../models/data.models';
 import { Subject, debounceTime, distinctUntilChanged, Subscription } from 'rxjs';
+import { PhoneCleanerPipe } from '../../pipes/phone-cleaner.pipe';
+
 
 @Component({
   selector: 'app-customer-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PhoneCleanerPipe],
+
   template: `
     <div class="customer-page scale-in">
       <div class="action-bar glass-card">
@@ -50,7 +53,8 @@ import { Subject, debounceTime, distinctUntilChanged, Subscription } from 'rxjs'
             <tr *ngFor="let customer of filteredCustomers; let i = index">
               <td>{{ (currentPage - 1) * perPage + i + 1 > totalItems ? i + 1 : getRowIndex(i) }}</td>
               <td class="font-bold">{{ customer.name }}</td>
-              <td><code>{{ customer.phone }}</code></td>
+              <td><code>{{ customer.phone | phoneCleaner }}</code></td>
+
               <td>{{ customer.address }}</td>
               <td>
                 <button class="btn-icon blue ri-v-adjust" (click)="openEditModal(customer)" title="Sửa">
@@ -658,6 +662,10 @@ export class CustomerListComponent implements OnInit, OnDestroy {
 
   openEditModal(customer: Customer) {
     this.editingCustomer = { ...customer };
+    // Cắt bỏ hậu tố _ex_ nếu có để hiển thị sạch cho người dùng sửa
+    if (this.editingCustomer.phone) {
+      this.editingCustomer.phone = this.editingCustomer.phone.split('_ex_')[0];
+    }
     this.isEditModalOpen = true;
 
     setTimeout(() => {

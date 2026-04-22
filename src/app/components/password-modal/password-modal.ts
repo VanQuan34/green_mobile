@@ -4,11 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { Invoice } from '../../models/data.models';
 import { DataService } from '../../services/data.service';
 import { finalize } from 'rxjs';
+import { PhoneCleanerPipe } from '../../pipes/phone-cleaner.pipe';
+
 
 @Component({
   selector: 'app-password-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PhoneCleanerPipe],
+
   template: `
     <div class="modal-overlay animate-fade-in" (click)="!isDeleting && onClose()">
       <div class="modal-content glass-card animate-scale-up" (click)="$event.stopPropagation()">
@@ -29,7 +32,7 @@ import { finalize } from 'rxjs';
             </div>
             <div class="summary-row">
               <span class="label">Số điện thoại:</span>
-              <span class="value">{{ invoice.buyerPhone }}</span>
+              <span class="value">{{ invoice.buyerPhone | phoneCleaner }}</span>
             </div>
             <div class="summary-row items-row">
               <span class="label">Sản phẩm:</span>

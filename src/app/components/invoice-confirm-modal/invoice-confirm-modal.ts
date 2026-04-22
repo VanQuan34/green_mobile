@@ -1,11 +1,14 @@
 import { Component, EventEmitter, Input, Output, OnInit, OnDestroy, ElementRef, Renderer2 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Invoice } from '../../models/data.models';
+import { PhoneCleanerPipe } from '../../pipes/phone-cleaner.pipe';
+
 
 @Component({
   selector: 'app-invoice-confirm-modal',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, PhoneCleanerPipe],
+
   template: `
     <div class="modal-overlay animate-fade-in" (click)="!loading && onBack()">
       <div class="modal-content glass-card" (click)="$event.stopPropagation()">
@@ -20,7 +23,7 @@ import { Invoice } from '../../models/data.models';
               <label>Khách hàng</label>
               <div class="info-box">
                 <p><strong>{{ invoice.buyerName }}</strong></p>
-                <p>{{ invoice.buyerPhone }}</p>
+                <p>{{ invoice.buyerPhone | phoneCleaner }}</p>
                 <p class="text-muted">{{ invoice.buyerAddress }}</p>
               </div>
             </div>

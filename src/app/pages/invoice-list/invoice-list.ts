@@ -8,11 +8,14 @@ import { InvoiceFormModalComponent } from '../../components/invoice-form-modal/i
 import { ExportInvoiceModalComponent } from '../../components/export-invoice-modal/export-invoice-modal';
 import { PasswordModalComponent } from '../../components/password-modal/password-modal';
 import { Subject, debounceTime, distinctUntilChanged, Subscription } from 'rxjs';
+import { PhoneCleanerPipe } from '../../pipes/phone-cleaner.pipe';
+
 
 @Component({
   selector: 'app-invoice-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, InvoiceDetailModalComponent, InvoiceFormModalComponent, ExportInvoiceModalComponent, PasswordModalComponent],
+  imports: [CommonModule, FormsModule, InvoiceDetailModalComponent, InvoiceFormModalComponent, ExportInvoiceModalComponent, PasswordModalComponent, PhoneCleanerPipe],
+
   template: `
     <div class="invoice-page animate-fade-in">
       <div class="list-header">
@@ -85,7 +88,7 @@ import { Subject, debounceTime, distinctUntilChanged, Subscription } from 'rxjs'
               <td>
                 <div class="customer-info">
                   <span class="name">{{ invoice.buyerName }}</span>
-                  <span class="phone text-muted">{{ invoice.buyerPhone }}</span>
+                  <span class="phone text-muted">{{ invoice.buyerPhone | phoneCleaner }}</span>
                 </div>
               </td>
               <td>

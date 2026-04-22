@@ -6,11 +6,14 @@ import { Invoice } from '../../models/data.models';
 import { InvoiceDetailModalComponent } from '../../components/invoice-detail-modal/invoice-detail-modal';
 import { ManualDebtModalComponent } from '../../components/manual-debt-modal/manual-debt-modal';
 import { ProductDetailModalComponent } from '../../components/product-detail/product-detail';
+import { PhoneCleanerPipe } from '../../pipes/phone-cleaner.pipe';
+
 
 @Component({
   selector: 'app-debt-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, InvoiceDetailModalComponent, ManualDebtModalComponent],
+  imports: [CommonModule, FormsModule, InvoiceDetailModalComponent, ManualDebtModalComponent, PhoneCleanerPipe],
+
   template: `
     <div class="debt-page">
       <div class="filter-bar glass-card animate-fade-in">
@@ -94,7 +97,7 @@ import { ProductDetailModalComponent } from '../../components/product-detail/pro
                   <span class="address">{{ item.buyerAddress }}</span>
                 </div>
               </td>
-              <td>{{ item.buyerPhone }}</td>
+              <td>{{ item.buyerPhone | phoneCleaner }}</td>
               <!-- <td>
                 <div class="product-info">
                   <div class="p-item-tag" *ngFor="let p of item.products?.slice(0, 2)">

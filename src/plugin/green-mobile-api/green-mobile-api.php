@@ -140,13 +140,21 @@ function gm_upsert_user($name, $phone, $address)
 
     // Chỉ tìm kiếm khách hàng cũ nếu có số điện thoại thực sự
     if (!empty($phone)) {
-        $existing_id = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table WHERE phone = %s", $phone));
+        // 1. Tìm chính xác Tên + SĐT
+        $existing_id = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table WHERE phone = %s AND name = %s", $phone, $name));
         if ($existing_id) {
+            // Nếu khớp hoàn toàn, cập nhật địa chỉ
             $wpdb->update($table, array(
-                'name' => sanitize_text_field($name),
                 'address' => sanitize_textarea_field($address)
             ), array('id' => $existing_id));
             return $existing_id;
+        }
+
+        // 2. Nếu không khớp hoàn toàn, kiểm tra xem SĐT đã tồn tại chưa (nhưng khác tên)
+        $phone_exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table WHERE phone = %s", $phone));
+        if ($phone_exists) {
+            // SĐT đã có nhưng Tên khác -> Tạo SĐT mới với hậu tố timestamp để tránh trùng UNIQUE KEY
+            $phone = $phone . '_ex_' . time();
         }
     } else {
         // Dùng uniqid để đảm bảo không bao giờ trùng lặp UNIQUE KEY phone
@@ -983,10 +991,26 @@ function gm_handle_update_customer($request)
     $params = $request->get_json_params();
     $table = $wpdb->prefix . 'gm_users';
 
+    $name = sanitize_text_field($params['name'] ?? '');
+    $phone = sanitize_text_field($params['phone'] ?? '');
+    $address = sanitize_text_field($params['address'] ?? '');
+
+    // Kiểm tra trùng SĐT với người KHÁC
+    if (!empty($phone)) {
+        $exists_for_other = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM $table WHERE phone = %s AND id != %d",
+            $phone, $id
+        ));
+        if ($exists_for_other) {
+            // SĐT này đã có người khác dùng -> áp dụng tiếp suffix để không lỗi DB
+            $phone = $phone . '_ex_' . time();
+        }
+    }
+
     $data = array(
-        'name' => sanitize_text_field($params['name'] ?? ''),
-        'phone' => sanitize_text_field($params['phone'] ?? ''),
-        'address' => sanitize_text_field($params['address'] ?? '')
+        'name' => $name,
+        'phone' => $phone,
+        'address' => $address
     );
 
     $wpdb->update($table, $data, array('id' => $id));

@@ -3,11 +3,14 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Product, Invoice } from '../../models/data.models';
 import { DataService } from '../../services/data.service';
+import { PhoneCleanerPipe } from '../../pipes/phone-cleaner.pipe';
+
 
 @Component({
   selector: 'app-invoice-form-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PhoneCleanerPipe],
+
   template: `
     <div class="modal-overlay animate-fade-in">
       <div class="modal-content glass-card">
@@ -68,7 +71,7 @@ import { DataService } from '../../services/data.service';
                 >
                   <div class="s-info">
                     <span class="s-name">{{ s.name }}</span>
-                    <span class="s-phone">{{ s.phone }}</span>
+                    <span class="s-phone">{{ s.phone | phoneCleaner }}</span>
                   </div>
                 </div>
               </div>
@@ -632,7 +635,8 @@ export class InvoiceFormModalComponent implements OnInit, OnDestroy {
   selectCustomer(customer: any) {
     this.invoice.buyer_id = customer.id || customer.buyer_id;
     this.invoice.buyerName = customer.name;
-    this.invoice.buyerPhone = customer.phone;
+    this.invoice.buyerPhone = customer.phone?.split('_ex_')[0] || '';
+
     this.invoice.buyerAddress = customer.address;
     if (customer.email) this.invoice.buyer_email = customer.email;
     this.showSuggestions = false;

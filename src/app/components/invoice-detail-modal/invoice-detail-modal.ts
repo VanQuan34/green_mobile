@@ -3,11 +3,14 @@ import { CommonModule } from '@angular/common';
 import { Invoice } from '../../models/data.models';
 import { DataService } from '../../services/data.service';
 import { forkJoin, finalize } from 'rxjs';
+import { PhoneCleanerPipe } from '../../pipes/phone-cleaner.pipe';
+
 
 @Component({
   selector: 'app-invoice-detail-modal',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, PhoneCleanerPipe],
+
   template: `
     <div class="modal-overlay animate-fade-in" (click)="onClose()">
       <div class="modal-content glass-card" (click)="$event.stopPropagation()">
@@ -26,7 +29,7 @@ import { forkJoin, finalize } from 'rxjs';
               <label>Thông tin khách hàng</label>
               <div class="info-card">
                 <p class="customer-name"><strong>{{ invoice.buyerName }}</strong></p>
-                <p class="customer-phone">{{ invoice.buyerPhone }}</p>
+                <p class="customer-phone">{{ invoice.buyerPhone | phoneCleaner }}</p>
                 <p class="customer-address text-muted">{{ invoice.buyerAddress }}</p>
               </div>
             </div>
